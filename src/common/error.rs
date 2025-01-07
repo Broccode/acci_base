@@ -66,3 +66,87 @@ impl Default for ErrorContext {
 }
 
 pub type AppResult<T> = Result<T, (AppError, ErrorContext)>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_error_context_new() {
+        let context = ErrorContext::new();
+        assert!(context.error_id != Uuid::nil());
+        assert!(context.tenant_id.is_none());
+        assert!(context.user_id.is_none());
+        assert!(context.request_id.is_none());
+    }
+
+    #[test]
+    fn test_error_context_with_tenant() {
+        let tenant_id = "test-tenant-123";
+        let context = ErrorContext::new().with_tenant(tenant_id);
+        assert_eq!(context.tenant_id.unwrap(), tenant_id);
+    }
+
+    #[test]
+    fn test_error_context_with_user() {
+        let user_id = "test-user-123";
+        let context = ErrorContext::new().with_user(user_id);
+        assert_eq!(context.user_id.unwrap(), user_id);
+    }
+
+    #[test]
+    fn test_error_context_with_request() {
+        let request_id = "test-request-123";
+        let context = ErrorContext::new().with_request(request_id);
+        assert_eq!(context.request_id.unwrap(), request_id);
+    }
+
+    #[test]
+    fn test_error_context_chaining() {
+        let tenant_id = "test-tenant-123";
+        let user_id = "test-user-123";
+        let request_id = "test-request-123";
+
+        let context = ErrorContext::new()
+            .with_tenant(tenant_id)
+            .with_user(user_id)
+            .with_request(request_id);
+
+        assert_eq!(context.tenant_id.unwrap(), tenant_id);
+        assert_eq!(context.user_id.unwrap(), user_id);
+        assert_eq!(context.request_id.unwrap(), request_id);
+    }
+
+    #[test]
+    fn test_app_error_display() {
+        let auth_error = AppError::Authentication("Invalid credentials".into());
+        assert_eq!(
+            auth_error.to_string(),
+            "Authentication error: Invalid credentials"
+        );
+
+        let tenant_error = AppError::Tenant("Tenant not found".into());
+        assert_eq!(tenant_error.to_string(), "Tenant error: Tenant not found");
+    }
+
+    #[test]
+    fn test_app_result_ok() {
+        let result: AppResult<i32> = Ok(42);
+        assert_eq!(result.unwrap(), 42);
+    }
+
+    #[test]
+    fn test_app_result_err() {
+        let error = AppError::NotFound("Resource not found".into());
+        let context = ErrorContext::new();
+        let result: AppResult<i32> = Err((error, context));
+
+        match result {
+            Ok(_) => panic!("Expected error"),
+            Err((error, context)) => {
+                assert!(matches!(error, AppError::NotFound(_)));
+                assert!(context.error_id != Uuid::nil());
+            }
+        }
+    }
+}

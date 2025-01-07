@@ -66,7 +66,7 @@ jobs:
           severity: 'CRITICAL,HIGH,MEDIUM'
           timeout: '10m'
           ignore-unfixed: false
-          scan-type: 'vuln'
+          scan-type: 'image'
 
       # Additional Trivy scans for config and secrets
       - name: Run Trivy config scanner
@@ -79,15 +79,15 @@ jobs:
           severity: 'CRITICAL,HIGH,MEDIUM'
           scan-type: 'config'
 
-      - name: Run Trivy secret scanner
+      - name: Run Trivy filesystem scanner
         uses: aquasecurity/trivy-action@master
         if: success()
         with:
-          image-ref: 'acci:latest'
+          scan-ref: '.'
           format: 'sarif'
-          output: './trivy-secret-results.sarif'
+          output: './trivy-fs-results.sarif'
           severity: 'CRITICAL,HIGH,MEDIUM'
-          scan-type: 'secret'
+          scan-type: 'fs'
 
       - name: Upload Trivy vulnerability results
         uses: github/codeql-action/upload-sarif@v3

@@ -1,0 +1,25 @@
+schemaVersion: '2.0.0'
+
+fileExistenceTests:
+  - name: 'Check SBOM exists'
+    path: '/app/bom.json'
+    shouldExist: true
+  - name: 'Check binary exists'
+    path: '/app/acci'
+    shouldExist: true
+    permissions: '-rwxr-xr-x'
+
+metadataTest:
+  env:
+    - key: RUST_BACKTRACE
+      value: "0"
+    - key: RUST_LOG
+      value: "info"
+  exposedPorts: ["8080"]
+  user: "appuser"
+
+commandTests:
+  - name: "Check binary runs"
+    command: "/app/acci"
+    args: ["--version"]
+    exitCode: 0 

@@ -1,0 +1,44 @@
+FROM rust:1.82-slim AS builder
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create appuser
+RUN adduser --no-create-home --disabled-password --gecos "" appuser
+
+WORKDIR /app
+COPY . .
+
+# Build with security flags
+RUN RUSTFLAGS="-C target-feature=+crt-static" cargo build --release
+
+# Generate SBOM
+RUN cargo install cargo-cyclonedx
+RUN cargo cyclonedx --output-format json --output-file bom.json
+
+# Security scan stage
+FROM aquasec/trivy:latest AS security-scan
+COPY --from=builder /app /app
+RUN trivy fs --severity HIGH,CRITICAL --exit-code 1 /app
+
+# Final stage
+FROM gcr.io/distroless/static:nonroot
+
+# Copy binary and SBOM
+COPY --from=builder /app/target/release/acci /app/acci
+COPY --from=builder /app/bom.json /app/bom.json
+COPY --from=builder /etc/passwd /etc/passwd
+
+# Use non-root user
+USER appuser
+
+# Set secure defaults
+ENV RUST_BACKTRACE=0
+ENV RUST_LOG=info
+
+EXPOSE 8080
+
+ENTRYPOINT ["/app/acci"]

@@ -5,7 +5,7 @@ fileExistenceTests:
     path: '/app/bom.json'
     shouldExist: true
   - name: 'Check binary exists'
-    path: '/app/acci'
+    path: '/app/acci_base'
     shouldExist: true
     permissions: '-rwxr-xr-x'
 
@@ -20,6 +20,6 @@ metadataTest:
 
 commandTests:
   - name: "Check binary runs"
-    command: "/app/acci"
+    command: "/app/acci_base"
     args: ["--version"]
-    exitCode: 0 
+    exitCode: 0

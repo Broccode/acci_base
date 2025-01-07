@@ -66,14 +66,49 @@ jobs:
           severity: 'CRITICAL,HIGH,MEDIUM'
           timeout: '10m'
           ignore-unfixed: false
-          scan-type: 'vuln,config,secret'
+          scan-type: 'vuln'
 
-      - name: Upload Trivy scan results to GitHub Security tab
+      # Additional Trivy scans for config and secrets
+      - name: Run Trivy config scanner
+        uses: aquasecurity/trivy-action@master
+        if: success()
+        with:
+          image-ref: 'acci:latest'
+          format: 'sarif'
+          output: './trivy-config-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          scan-type: 'config'
+
+      - name: Run Trivy secret scanner
+        uses: aquasecurity/trivy-action@master
+        if: success()
+        with:
+          image-ref: 'acci:latest'
+          format: 'sarif'
+          output: './trivy-secret-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          scan-type: 'secret'
+
+      - name: Upload Trivy vulnerability results
         uses: github/codeql-action/upload-sarif@v3
         if: success() && hashFiles('./trivy-results.sarif') != ''
         with:
           sarif_file: './trivy-results.sarif'
-          category: trivy
+          category: trivy-vuln
+
+      - name: Upload Trivy config results
+        uses: github/codeql-action/upload-sarif@v3
+        if: success() && hashFiles('./trivy-config-results.sarif') != ''
+        with:
+          sarif_file: './trivy-config-results.sarif'
+          category: trivy-config
+
+      - name: Upload Trivy secret results
+        uses: github/codeql-action/upload-sarif@v3
+        if: success() && hashFiles('./trivy-secret-results.sarif') != ''
+        with:
+          sarif_file: './trivy-secret-results.sarif'
+          category: trivy-secret
 
       - name: Verify SBOM
         run: |

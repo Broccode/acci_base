@@ -46,11 +46,19 @@ jobs:
           tags: acci:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          provenance: true
-          sbom: true
+          provenance: false  # Disable provenance to avoid manifest list issues
+          sbom: false       # Generate SBOM separately
+
+      - name: Generate SBOM
+        uses: anchore/syft-action@v0.6.0
+        with:
+          image: acci:latest
+          output: cyclonedx-json
+          file: ./container-bom.json
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
+        if: success()  # Only run if build succeeds
         with:
           image-ref: 'acci:latest'
           format: 'sarif'
@@ -62,7 +70,7 @@ jobs:
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: success() && hashFiles('./trivy-results.sarif') != ''
         with:
           sarif_file: './trivy-results.sarif'
           category: trivy

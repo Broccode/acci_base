@@ -37,19 +37,26 @@ struct ACCIFramework {
 | English  | ✓    | ✓        | ✓             | ✓  | ✓       |
 | German   | -    | -        | ✓             | ✓  | ✓       |
 | Albanian | -    | -        | ✓             | ✓  | ✓       |
-| French   | -    | -        | -             | ✓  | -       |
-| Spanish  | -    | -        | -             | ✓  | -       |
+| French   | -    | -        | ✓             | ✓  | ✓       |
+| Spanish  | -    | -        | ✓             | ✓  | ✓       |
 
 ### Documentation Structure
 ```
 doc/
 ├── architecture/    # Technical documentation (English only)
 ├── api/            # API documentation (Multi-language)
+│   ├── en/         # English API docs
+│   ├── de/         # German API docs
+│   ├── sq/         # Albanian API docs
+│   ├── fr/         # French API docs
+│   └── es/         # Spanish API docs
 ├── development/    # Development guides (English only)
-└── user/           # User documentation (All languages)
+└── user/           # User documentation (Multi-language)
     ├── en/         # English user docs
     ├── de/         # German user docs
-    └── sq/         # Albanian user docs
+    ├── sq/         # Albanian user docs
+    ├── fr/         # French user docs
+    └── es/         # Spanish user docs
 ```
 
 ## Technical Architecture

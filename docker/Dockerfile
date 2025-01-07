@@ -17,7 +17,7 @@ RUN RUSTFLAGS="-C target-feature=+crt-static" cargo build --release
 
 # Generate SBOM
 RUN cargo install cargo-cyclonedx
-RUN cargo cyclonedx --output-format json --output-file bom.json
+RUN cargo cyclonedx -f json -o bom.json
 
 # Security scan stage
 FROM aquasec/trivy:latest AS security-scan

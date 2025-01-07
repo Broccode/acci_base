@@ -65,4 +65,4 @@ impl Default for ErrorContext {
     }
 }
 
-pub type AppResult<T> = Result<T, (AppError, ErrorContext)>; 
+pub type AppResult<T> = Result<T, (AppError, ErrorContext)>;

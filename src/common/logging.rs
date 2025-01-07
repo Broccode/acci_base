@@ -1,14 +1,13 @@
 use tracing::Subscriber;
 use tracing_subscriber::{
     fmt::{self, format::FmtSpan},
-    EnvFilter,
     layer::SubscriberExt,
     util::SubscriberInitExt,
+    EnvFilter,
 };
 
 pub fn setup_logging() {
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info"));
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
     let formatting_layer = fmt::layer()
         .with_target(true)
@@ -43,4 +42,4 @@ where
         request_id = %request_id,
     );
     span.in_scope(f)
-} 
+}

@@ -1,5 +1,5 @@
-use std::time::Duration;
 use crate::common::error::AppResult;
+use std::time::Duration;
 
 #[derive(Clone)]
 pub struct CacheConnection {
@@ -26,4 +26,4 @@ impl CacheConnection {
         // TODO: Implement actual cache delete
         Ok(())
     }
-} 
+}

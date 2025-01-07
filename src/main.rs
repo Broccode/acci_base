@@ -1,10 +1,6 @@
 use axum::Router;
 use std::net::SocketAddr;
-use tower_http::{
-    compression::CompressionLayer,
-    cors::CorsLayer,
-    trace::TraceLayer,
-};
+use tower_http::{compression::CompressionLayer, cors::CorsLayer, trace::TraceLayer};
 
 mod api;
 mod common;
@@ -23,7 +19,7 @@ async fn main() {
     // let _db = DatabaseConnection::new("postgres://localhost/acci_base")
     //     .await
     //     .expect("Failed to connect to database");
-    
+
     // let _cache = CacheConnection::new()
     //     .await
     //     .expect("Failed to connect to cache");

@@ -1,6 +1,6 @@
+use crate::common::error::{AppError, AppResult, ErrorContext};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::common::error::{AppError, AppResult, ErrorContext};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tenant {
@@ -52,4 +52,4 @@ impl TenantContext {
         }
         Ok(())
     }
-} 
+}

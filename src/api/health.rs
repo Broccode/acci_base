@@ -1,8 +1,4 @@
-use axum::{
-    routing::get,
-    Router,
-    Json,
-};
+use axum::{routing::get, Json, Router};
 use serde::Serialize;
 use std::time::SystemTime;
 
@@ -40,4 +36,4 @@ async fn readiness_check() -> Json<HealthResponse> {
             .unwrap()
             .as_secs(),
     })
-} 
+}

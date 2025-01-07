@@ -121,3 +121,58 @@ CONTAINER BEST PRACTICES
 - Implement proper signal handling
 - Handle container lifecycle properly
 - In Compose files, omit the "version" attribute
+
+LOGGING
+
+- Use tracing crate for structured logging
+- Implement consistent log levels (ERROR, WARN, INFO, DEBUG, TRACE)
+- Include correlation IDs in all log entries
+- Log in JSON format for production environments
+- Include contextual information (request_id, user_id, service_name)
+- Avoid logging sensitive information (PII, credentials)
+- Implement log rotation and retention policies
+- Use span events for tracking request lifecycle
+
+METRICS
+
+- Implement RED metrics (Rate, Errors, Duration)
+- Use metrics-rs for collecting application metrics
+- Export metrics in Prometheus format
+- Track system metrics (CPU, Memory, I/O)
+- Monitor connection pool statistics
+- Implement custom business metrics
+- Set up alerting thresholds
+- Track SLO/SLI compliance
+
+TRACING
+
+- Implement OpenTelemetry integration
+- Use distributed tracing across services
+- Track external service calls
+- Monitor database query performance
+- Include trace context in logs
+- Set appropriate sampling rates
+- Track async operation timing
+- Implement baggage propagation
+
+HEALTH CHECKS
+
+- Implement /health and /ready endpoints
+- Include dependency health status
+- Set appropriate timeouts
+- Monitor background task health
+- Implement circuit breakers
+- Track resource exhaustion
+- Monitor connection pool health
+- Implement graceful degradation
+
+ERROR TRACKING
+
+- Implement error aggregation
+- Track error rates and patterns
+- Monitor failed background jobs
+- Track API error responses
+- Implement error categorization
+- Monitor validation failures
+- Track rate limiting events
+- Implement error reporting (e.g., Sentry)

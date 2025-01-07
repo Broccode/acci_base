@@ -1061,3 +1061,57 @@ async fn manage_container_lifecycle() {
   - Memory footprint per service
   - CPU utilization thresholds
   - Connection pool sizes
+
+### EVENT DRIVEN ARCHITECTURE
+
+- Event Patterns:
+  - Event Schema Definition und Versionierung
+  - Event Validation
+  - Dead Letter Queues
+  - Event Replay Capabilities
+
+- Message Broker Requirements:
+  - At-least-once Delivery
+  - Message Persistence
+  - Topic/Queue Management
+  - Multi-Tenant Event Isolation
+
+### CACHING STRATEGY
+
+- Multi-Level Caching:
+  - Application-Level Cache (Memory)
+  - Distributed Cache (Redis)
+
+- Cache Policies:
+  - TTL Definitionen
+  - Cache Invalidation Strategien
+  - Cache Warming
+  - Tenant-spezifisches Caching
+
+### BACKUP & RECOVERY
+
+- Backup Types:
+  - Full System Backups
+  - Incremental Backups
+  - Point-in-Time Recovery
+  - Tenant-specific Backups
+
+- Recovery Procedures:
+  - RTO (Recovery Time Objective) < 4 Stunden
+  - RPO (Recovery Point Objective) < 15 Minuten
+  - Automated Recovery Tests
+  - Documented Recovery Procedures
+
+### API GATEWAY REQUIREMENTS
+
+- Gateway Features:
+  - Request/Response Transformation
+  - API Aggregation
+  - Cross-Origin Resource Sharing (CORS)
+  - API Versioning
+
+- Security Features:
+  - API Key Management
+  - OAuth2/OIDC Integration
+  - Rate Limiting
+  - Request Validation

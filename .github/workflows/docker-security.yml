@@ -5,8 +5,9 @@ on:
   push:
     branches: [ master ]
     paths:
-      - 'Dockerfile'
+      - 'docker/Dockerfile'
       - '.github/workflows/docker-security.yml'
+      - 'docker/.container-structure-test.yaml'
       - 'src/**'
       - 'Cargo.*'
   pull_request:

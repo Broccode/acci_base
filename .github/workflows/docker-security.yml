@@ -171,11 +171,14 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run cargo-deny
-        uses: EmbarkStudios/cargo-deny-action@v1
-        with:
-          arguments: --all-features
-          command: check licenses sources advisories
+      - name: Install cargo-deny
+        run: cargo install --locked cargo-deny
+
+      - name: Run cargo-deny checks
+        run: |
+          cargo deny check licenses
+          cargo deny check sources
+          cargo deny check advisories
 
   sign-image:
     needs: [security-scan, dependency-audit]

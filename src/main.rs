@@ -12,7 +12,7 @@ mod domain;
 mod infrastructure;
 
 use common::setup_logging;
-use infrastructure::{DatabaseConnection, CacheConnection};
+// use infrastructure::{DatabaseConnection, CacheConnection};
 
 #[tokio::main]
 async fn main() {
@@ -20,13 +20,13 @@ async fn main() {
     setup_logging();
 
     // Initialize infrastructure
-    let _db = DatabaseConnection::new("postgres://localhost/acci_base")
-        .await
-        .expect("Failed to connect to database");
+    // let _db = DatabaseConnection::new("postgres://localhost/acci_base")
+    //     .await
+    //     .expect("Failed to connect to database");
     
-    let _cache = CacheConnection::new()
-        .await
-        .expect("Failed to connect to cache");
+    // let _cache = CacheConnection::new()
+    //     .await
+    //     .expect("Failed to connect to cache");
 
     // Create the application router
     let app = Router::new()

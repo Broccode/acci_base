@@ -73,11 +73,12 @@ jobs:
         uses: aquasecurity/trivy-action@master
         if: success()
         with:
-          image-ref: 'acci:latest'
+          scan-type: 'image'
+          scan-ref: 'acci:latest'
           format: 'sarif'
           output: './trivy-config-results.sarif'
           severity: 'CRITICAL,HIGH,MEDIUM'
-          scan-type: 'config'
+          scanners: 'config'
 
       - name: Run Trivy filesystem scanner
         uses: aquasecurity/trivy-action@master

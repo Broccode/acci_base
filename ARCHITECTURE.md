@@ -904,6 +904,124 @@ async fn manage_container_lifecycle() {
 - Linting
 - Security scanning
 
+#### IAM & Authorization Requirements
+
+- Keycloak Integration:
+  ```rust
+  #[derive(Debug, Clone)]
+  struct KeycloakConfig {
+      realm: String,
+      client_id: String,
+      client_secret: String,
+      auth_server_url: String,
+  }
+
+  async fn validate_token(token: &str) -> Result<KeycloakClaims, AuthError> {
+      // Token validation against Keycloak
+  }
+  ```
+
+- OSO Authorization:
+  ```rust
+  #[derive(Debug)]
+  struct OsoAuthorizer {
+      oso: Oso,
+      polar_files: Vec<String>,
+  }
+
+  impl OsoAuthorizer {
+      async fn authorize(&self, actor: &User, action: &str, resource: &Resource) -> Result<bool, AuthError> {
+          self.oso.is_allowed(actor, action, resource)
+      }
+  }
+  ```
+
+- Policy Definition:
+  ```polar
+  # policies/rbac.polar
+  allow(actor, action, resource) if
+      has_role(actor, role) and
+      has_permission(role, action, resource);
+  ```
+
+#### Database Access Requirements
+
+- Sea-ORM Integration:
+  ```rust
+  #[derive(Clone, Debug, DeriveEntityModel)]
+  #[sea_orm(table_name = "users")]
+  pub struct Model {
+      #[sea_orm(primary_key)]
+      pub id: i32,
+      pub tenant_id: i32,
+      pub username: String,
+      pub email: String,
+      pub created_at: DateTime,
+      pub updated_at: DateTime,
+  }
+
+  #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+  pub enum Relation {
+      #[sea_orm(has_many = "super::role::Entity")]
+      Role,
+  }
+  ```
+
+- Database Migration:
+  ```rust
+  use sea_orm_migration::prelude::*;
+
+  #[derive(DeriveMigrationName)]
+  pub struct Migration;
+
+  #[async_trait::async_trait]
+  impl MigrationTrait for Migration {
+      async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+          // Migration implementation
+      }
+
+      async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+          // Rollback implementation
+      }
+  }
+  ```
+
+- Multi-Tenant Database Access:
+  ```rust
+  #[derive(Debug)]
+  struct TenantDatabaseManager {
+      connection_pool: DatabaseConnection,
+  }
+
+  impl TenantDatabaseManager {
+      async fn with_tenant<F, R>(&self, tenant_id: i32, f: F) -> Result<R, DbErr>
+      where
+          F: Future<Output = Result<R, DbErr>>,
+      {
+          // Set tenant context and execute query
+          set_tenant_context(tenant_id);
+          f.await
+      }
+  }
+  ```
+
+#### Security Requirements
+
+- Keycloak Security Context:
+  ```rust
+  #[derive(Debug)]
+  struct SecurityContext {
+      tenant: TenantId,
+      user: KeycloakUser,
+      permissions: Arc<OsoAuthorizer>,
+  }
+
+  async fn verify_access(ctx: &SecurityContext, resource: &Resource) -> Result<(), AccessError> {
+      ctx.permissions.authorize(&ctx.user, "access", resource).await?;
+      Ok(())
+  }
+  ```
+
 ### Infrastructure Requirements
 
 #### Monitoring & Alerting
@@ -1037,19 +1155,184 @@ async fn manage_container_lifecycle() {
 
 ### SBOM Requirements
 
-- Automated SBOM generation in CI/CD pipeline
-- Regular SBOM updates and validation
-- SBOM format compliance (CycloneDX)
-- Dependency vulnerability tracking
-- License compliance monitoring
-- SBOM versioning and tracking
-- Component origin verification
-- Integration points:
-  - CI/CD pipeline integration
-  - Security audit integration
-  - Dependency update workflow
-  - Release process integration
-  - Audit logging integration
+- CycloneDX Integration:
+  ```rust
+  #[derive(Debug)]
+  struct CycloneDXGenerator {
+      workspace_path: PathBuf,
+      output_format: CycloneDXFormat,
+      version: String,
+  }
+
+  impl CycloneDXGenerator {
+      async fn generate_bom(&self) -> Result<Bom, SBOMError> {
+          // Generate CycloneDX SBOM for the entire workspace
+      }
+
+      async fn generate_component_bom(&self, component: &str) -> Result<Bom, SBOMError> {
+          // Generate CycloneDX SBOM for a specific component
+      }
+  }
+  ```
+
+- SBOM Generation Pipeline:
+  ```rust
+  #[derive(Debug)]
+  struct SBOMPipeline {
+      generators: Vec<Box<dyn SBOMGenerator>>,
+      validators: Vec<Box<dyn SBOMValidator>>,
+      publishers: Vec<Box<dyn SBOMPublisher>>,
+  }
+
+  impl SBOMPipeline {
+      async fn execute(&self) -> Result<(), SBOMError> {
+          // 1. Generate SBOM
+          let bom = self.generate().await?;
+          
+          // 2. Validate SBOM
+          self.validate(&bom).await?;
+          
+          // 3. Publish SBOM
+          self.publish(&bom).await
+      }
+  }
+  ```
+
+- Validation Requirements:
+  ```rust
+  #[async_trait]
+  trait SBOMValidator {
+      async fn validate_dependencies(&self, bom: &Bom) -> Result<ValidationReport, SBOMError>;
+      async fn validate_licenses(&self, bom: &Bom) -> Result<ValidationReport, SBOMError>;
+      async fn validate_vulnerabilities(&self, bom: &Bom) -> Result<ValidationReport, SBOMError>;
+  }
+  ```
+
+- CI/CD Integration:
+  ```rust
+  #[derive(Debug)]
+  struct CIConfig {
+      sbom_required: bool,
+      validation_rules: ValidationRules,
+      publishing_targets: Vec<PublishTarget>,
+  }
+
+  async fn ci_sbom_step() -> Result<(), CIError> {
+      // 1. Generate SBOM
+      let bom = generate_sbom().await?;
+      
+      // 2. Validate against security policies
+      validate_security(&bom).await?;
+      
+      // 3. Check license compliance
+      validate_licenses(&bom).await?;
+      
+      // 4. Publish to artifact registry
+      publish_sbom(&bom).await
+  }
+  ```
+
+- Monitoring & Reporting:
+  ```rust
+  #[derive(Debug)]
+  struct SBOMMetrics {
+      total_components: usize,
+      direct_dependencies: usize,
+      indirect_dependencies: usize,
+      vulnerabilities: Vec<Vulnerability>,
+      license_violations: Vec<LicenseViolation>,
+  }
+
+  async fn generate_sbom_report(bom: &Bom) -> Result<SBOMReport, ReportError> {
+      // Generate comprehensive SBOM report
+  }
+  ```
+
+#### SBOM Integration Points
+
+- Dependency Management:
+  - Automated dependency scanning
+  - Version conflict detection
+  - License compatibility checking
+  - Vulnerability monitoring
+  - Update recommendations
+
+- Security Compliance:
+  - NIST compliance validation
+  - CVE tracking and alerts
+  - Security policy enforcement
+  - Audit trail maintenance
+  - Incident response triggers
+
+- Release Process:
+  - SBOM generation per release
+  - Version tracking and history
+  - Component provenance verification
+  - Release signing with SBOM
+  - Distribution compliance checks
+
+- Continuous Monitoring:
+  - Real-time vulnerability scanning
+  - Dependency health monitoring
+  - License compliance tracking
+  - Component usage analytics
+  - Alert generation and notification
+
+#### SBOM Data Requirements
+
+- Component Metadata:
+  ```json
+  {
+    "type": "library",
+    "name": "example-lib",
+    "version": "1.0.0",
+    "purl": "pkg:cargo/example-lib@1.0.0",
+    "licenses": ["MIT", "Apache-2.0"],
+    "hashes": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+  ```
+
+- Dependency Relationships:
+  ```json
+  {
+    "ref": "pkg:cargo/example-lib@1.0.0",
+    "dependsOn": [
+      "pkg:cargo/serde@1.0.0",
+      "pkg:cargo/tokio@1.0.0"
+    ],
+    "scope": "required"
+  }
+  ```
+
+#### SBOM Workflow Integration
+
+- Pre-commit Hooks:
+  ```shell
+  #!/bin/sh
+  cargo cyclonedx generate
+  cargo cyclonedx validate
+  ```
+
+- CI Pipeline Steps:
+  ```yaml
+  sbom:
+    steps:
+      - generate-sbom
+      - validate-sbom
+      - scan-vulnerabilities
+      - check-licenses
+      - publish-sbom
+  ```
+
+- Release Checklist:
+  - SBOM Generation
+  - Vulnerability Scan
+  - License Compliance
+  - Component Verification
+  - Documentation Update
+  - Distribution Package
 
 ### Performance Requirements
 
@@ -1115,3 +1398,93 @@ async fn manage_container_lifecycle() {
   - OAuth2/OIDC Integration
   - Rate Limiting
   - Request Validation
+
+#### Feature Flag Management
+
+- Unleash Integration:
+  ```rust
+  #[derive(Debug, Clone)]
+  struct UnleashConfig {
+      api_url: String,
+      client_token: String,
+      instance_id: String,
+      refresh_interval: Duration,
+  }
+
+  #[derive(Debug)]
+  struct UnleashClient {
+      config: UnleashConfig,
+      context: UnleashContext,
+  }
+
+  impl UnleashClient {
+      async fn is_enabled(&self, feature: &str, context: FeatureContext) -> bool {
+          let mut ctx = UnleashContext::new()
+              .tenant_id(&context.tenant_id.to_string())
+              .user_id(&context.user_id.to_string())
+              .environment(&context.environment);
+              
+          self.client.is_enabled(feature, ctx).await
+      }
+  }
+  ```
+
+- Feature Context:
+  ```rust
+  #[derive(Debug, Clone)]
+  struct FeatureContext {
+      tenant_id: TenantId,
+      user_id: UserId,
+      environment: String,
+      properties: HashMap<String, String>,
+  }
+  ```
+
+- Multi-Tenant Feature Management:
+  ```rust
+  impl UnleashClient {
+      async fn get_tenant_features(&self, tenant_id: TenantId) -> Vec<Feature> {
+          // Fetch and filter features based on tenant context
+      }
+
+      async fn validate_tenant_access(&self, tenant_id: TenantId, feature: &str) -> bool {
+          // Validate if tenant has access to specific feature
+      }
+  }
+  ```
+
+- Feature Flag Usage:
+  ```rust
+  #[instrument(skip(unleash))]
+  async fn process_with_feature(unleash: &UnleashClient, context: FeatureContext) -> Result<(), Error> {
+      if unleash.is_enabled("new_processing_engine", context.clone()).await {
+          process_with_new_engine().await
+      } else {
+          process_with_legacy_engine().await
+      }
+  }
+  ```
+
+- Feature Flag Testing:
+  ```rust
+  #[tokio::test]
+  async fn test_feature_flag_behavior() {
+      let mock_unleash = MockUnleashClient::new()
+          .with_feature("test_feature", true)
+          .with_tenant(tenant_id);
+
+      assert!(mock_unleash
+          .is_enabled("test_feature", test_context())
+          .await);
+  }
+  ```
+
+- Unleash Features:
+  - Multi-tenant feature management
+  - Environment-based rollouts
+  - Gradual rollouts
+  - A/B testing capabilities
+  - Feature flag audit logging
+  - API and SDK support
+  - Real-time updates
+  - Feature flag analytics

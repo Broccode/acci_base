@@ -22,7 +22,7 @@ permissions: write-all
 
 jobs:
   security-scan:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-noble-20241118.1
     permissions:
       contents: write
       packages: write
@@ -163,7 +163,7 @@ jobs:
           config: ./docker/.container-structure-test.yaml
 
   dependency-audit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-noble-20241118.1
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -187,7 +187,7 @@ jobs:
 
   sign-image:
     needs: [security-scan, dependency-audit]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-noble-20241118.1
     permissions:
       contents: read
       packages: write

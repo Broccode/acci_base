@@ -110,7 +110,7 @@ cargo test
 ---
 
 ## License
-MIT License - see [LICENSE](LICENSE) for details
+Apache 2.0 License - see [LICENSE](LICENSE) for details
 
 ## Contributing
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests. 

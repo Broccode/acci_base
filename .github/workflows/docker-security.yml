@@ -18,12 +18,7 @@ on:
 env:
   DOCKER_BUILDKIT: "1"
 
-permissions:
-  contents: read
-  security-events: write
-  actions: read
-  checks: write
-  pull-requests: write
+permissions: write-all
 
 jobs:
   security-scan:

@@ -17,8 +17,7 @@ RUN RUSTFLAGS="-C target-feature=+crt-static" cargo build --release
 
 # Generate SBOM
 RUN cargo install cargo-cyclonedx
-# Generate SBOM
-RUN cargo cyclonedx -f json --override-filename bom.json
+RUN cargo cyclonedx -f json --override-filename bom
 
 # Security scan stage
 FROM aquasec/trivy:latest AS security-scan
@@ -29,7 +28,7 @@ RUN trivy fs --severity HIGH,CRITICAL --exit-code 1 /app
 FROM gcr.io/distroless/static:nonroot
 
 # Copy binary and SBOM
-COPY --from=builder /app/target/release/acci /app/acci
+COPY --from=builder /app/target/release/acci_base /app/acci_base
 COPY --from=builder /app/bom.json /app/bom.json
 COPY --from=builder /etc/passwd /etc/passwd
 
@@ -42,4 +41,4 @@ ENV RUST_LOG=info
 
 EXPOSE 8080
 
-ENTRYPOINT ["/app/acci"]
+ENTRYPOINT ["/app/acci_base"]

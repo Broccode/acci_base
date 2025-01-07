@@ -1,0 +1,118 @@
+name: Rust Tests
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - '**/*.rs'
+      - 'Cargo.*'
+      - '.github/workflows/rust-tests.yml'
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ubuntu-noble-20241118.1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Check with clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run tests
+        run: cargo test --all-features --verbose
+
+      - name: Run doc tests
+        run: cargo test --doc
+
+      - name: Build documentation
+        run: cargo doc --no-deps --all-features
+
+      - name: Check for binary size increases
+        run: |
+          cargo build --release
+          ls -l target/release/acci_base
+
+      - name: Run cargo-audit
+        uses: actions-rs/audit-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Optional: Add benchmark comparison if you have benchmarks
+      - name: Run benchmarks
+        run: |
+          if [ -d "benches" ]; then
+            cargo install cargo-criterion
+            cargo criterion
+          fi
+
+      # Coverage reporting
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: Generate coverage report
+        run: |
+          cargo tarpaulin --verbose --all-features --workspace --timeout 120 --out xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: cobertura.xml
+          fail_ci_if_error: true
+
+  msrv:
+    name: Check MSRV
+    runs-on: ubuntu-noble-20241118.1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Check MSRV in Cargo.toml
+        run: |
+          MSRV=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "acci_base") | .rust_version')
+          if [ -z "$MSRV" ]; then
+            echo "No MSRV specified in Cargo.toml"
+            exit 1
+          fi
+          echo "MSRV is $MSRV"
+
+  cross-platform:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-noble-20241118.1, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run tests
+        run: cargo test --all-features --verbose

@@ -115,3 +115,13 @@ Commit all changes with message "release: Version X.Y.Z"
 Create a git tag for the version (e.g., v0.2.0)
 
 # [Unreleased]
+
+### Added
+- Core dependencies for multi-tenant system
+  - Axum web framework with full features
+  - Sea-ORM for database operations
+  - GraphQL support with async-graphql
+  - Authentication and authorization libraries
+  - Logging and metrics infrastructure
+  - Error handling utilities
+  - Development and testing utilities

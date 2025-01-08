@@ -114,6 +114,8 @@ mod tests {
     use tower::ServiceExt;
 
     async fn setup_test_app() -> (Router, String) {
+        let test_dir = format!("test_locales_health_test");
+        cleanup_test_translations(&test_dir);
         let test_dir =
             setup_test_translations("health_test").expect("Failed to setup test translations");
         let i18n = Arc::new(

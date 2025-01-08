@@ -225,19 +225,13 @@ impl I18nManager {
 pub fn setup_test_translations(test_name: &str) -> AppResult<String> {
     use crate::common::error::ErrorContext;
     let test_dir = format!("test_locales_{}", test_name);
-    let dir_path = PathBuf::from(&test_dir).join("en");
-    fs::create_dir_all(&dir_path).map_err(|e| {
-        (
-            AppError::I18n(format!("Failed to create directory: {}", e)),
-            ErrorContext::new(),
-        )
-    })?;
 
     let test_content = "test-message = Test message content
 health-status = System health status
 system-status-healthy = Healthy
 system-status-ready = Ready
 system-ready-message = System is ready to accept requests";
+
     let test_dirs = ["en", "de", "fr", "es", "sq"];
 
     for dir in test_dirs.iter() {

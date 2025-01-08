@@ -140,14 +140,14 @@ impl I18nManager {
             .iter()
             .flat_map(|args| args.iter().map(|(k, v)| (k.as_str(), v.as_str())))
             .collect();
-        let mut fluent_args = if !args_vec.is_empty() {
+        let fluent_args = if !args_vec.is_empty() {
             FluentArgs::from_iter(args_vec)
         } else {
             FluentArgs::new()
         };
 
         bundle
-            .format_pattern(pattern, Some(&mut fluent_args), &mut errors)
+            .format_pattern(pattern, Some(&fluent_args), &mut errors)
             .to_string()
     }
 

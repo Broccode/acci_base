@@ -134,12 +134,6 @@ mod tests {
     }
 
     #[test]
-    fn test_app_result_ok() {
-        let result: AppResult<i32> = Ok(42);
-        assert_eq!(result.unwrap(), 42);
-    }
-
-    #[test]
     fn test_app_result_err() {
         let error = AppError::NotFound("Resource not found".into());
         let context = ErrorContext::new();

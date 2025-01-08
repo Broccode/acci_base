@@ -13,7 +13,6 @@ pub struct HealthResponse {
 }
 
 /// Returns a router with all health-related routes
-#[must_use]
 pub fn health_routes() -> Router {
     Router::new()
         .route("/health", get(health_check))

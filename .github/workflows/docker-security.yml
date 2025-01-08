@@ -47,38 +47,35 @@ jobs:
       - name: Set up Cosign
         uses: sigstore/cosign-installer@v3.1.1
 
+      # Build for each platform separately
       - name: Build Docker images
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./docker/Dockerfile
-          platforms: ${{ env.PLATFORMS }}
-          load: true
-          tags: acci:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          provenance: false
-          sbom: false
+        run: |
+          for platform in $(echo ${{ env.PLATFORMS }} | tr ',' ' '); do
+            docker buildx build \
+              --platform $platform \
+              --cache-from type=gha \
+              --cache-to type=gha,mode=max \
+              --file ./docker/Dockerfile \
+              --tag acci:${platform//linux\//} \
+              --load \
+              .
+          done
 
       - name: Generate SBOM for all architectures
         run: |
           for platform in $(echo ${{ env.PLATFORMS }} | tr ',' ' '); do
-            docker buildx build --platform $platform \
-              --build-arg BUILDPLATFORM=$platform \
-              --build-arg TARGETPLATFORM=$platform \
-              -t acci:$platform .
-            
-            # Extract SBOM for each architecture
-            docker create --name temp-$platform acci:$platform
-            docker cp temp-$platform:/app/bom.json ./bom-$platform.json
-            docker rm temp-$platform
+            arch=${platform//linux\//}
+            docker create --name temp-$arch acci:$arch
+            docker cp temp-$arch:/app/bom.json ./bom-$platform.json
+            docker rm temp-$arch
           done
 
       - name: Run Trivy vulnerability scanner for all architectures
         run: |
           for platform in $(echo ${{ env.PLATFORMS }} | tr ',' ' '); do
-            trivy image --platform $platform \
-              acci:$platform \
+            arch=${platform//linux\//}
+            trivy image \
+              acci:$arch \
               -f sarif \
               -o trivy-results-$platform.sarif \
               --severity CRITICAL,HIGH,MEDIUM \
@@ -98,7 +95,7 @@ jobs:
         if: success()
         with:
           scan-type: 'image'
-          scan-ref: 'acci:latest'
+          scan-ref: 'acci:amd64'
           format: 'sarif'
           output: './trivy-config-results.sarif'
           severity: 'CRITICAL,HIGH,MEDIUM'
@@ -188,7 +185,7 @@ jobs:
       - name: Check for outdated base images
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'acci:latest'
+          image-ref: 'acci:amd64'
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
           format: 'table'
@@ -202,9 +199,18 @@ jobs:
       - name: Run Container Structure Test for all architectures
         run: |
           for platform in $(echo ${{ env.PLATFORMS }} | tr ',' ' '); do
+            arch=${platform//linux\//}
             container-structure-test test \
-              --image acci:$platform \
+              --image acci:$arch \
               --config ./docker/.container-structure-test.yaml
+          done
+
+      # Image Signing for each architecture
+      - name: Sign images with Cosign
+        run: |
+          for platform in $(echo ${{ env.PLATFORMS }} | tr ',' ' '); do
+            arch=${platform//linux\//}
+            cosign sign --yes acci:$arch
           done
 
   dependency-audit:

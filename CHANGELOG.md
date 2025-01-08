@@ -169,6 +169,11 @@ Create a git tag for the version (e.g., v0.2.0)
   - Installed bindgen-cli and AWS-LC system dependencies
   - Set up proper environment variables for cross-compilation
   - Added proper sysroot configuration for PPC64LE builds
+- Fixed Docker multi-architecture build process
+  - Modified build strategy to handle platform-specific builds separately
+  - Updated image tagging scheme for better architecture identification
+  - Adjusted security scanning and testing for platform-specific images
+  - Fixed manifest list handling in GitHub Actions
 
 ### Technical
 - Defined Minimum Supported Rust Version (MSRV) as 1.75 in Cargo.toml

@@ -28,11 +28,13 @@ pub struct TenantFeatures {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TenantContext {
     pub tenant: Tenant,
     pub request_id: String,
 }
 
+#[allow(dead_code)]
 impl TenantContext {
     pub fn new(tenant: Tenant, request_id: impl Into<String>) -> Self {
         Self {

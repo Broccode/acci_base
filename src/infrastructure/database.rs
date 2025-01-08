@@ -2,10 +2,12 @@ use crate::common::error::{AppError, AppResult};
 use sea_orm::DatabaseConnection as SeaOrmConnection;
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct DatabaseConnection {
     connection: SeaOrmConnection,
 }
 
+#[allow(dead_code)]
 impl DatabaseConnection {
     pub async fn new(database_url: &str) -> AppResult<Self> {
         let connection = sea_orm::Database::connect(database_url)

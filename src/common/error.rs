@@ -2,6 +2,7 @@ use thiserror::Error;
 use uuid::Uuid;
 
 #[derive(Error, Debug)]
+#[allow(dead_code)]
 pub enum AppError {
     #[error("Authentication error: {0}")]
     Authentication(String),
@@ -34,6 +35,7 @@ pub struct ErrorContext {
     pub request_id: Option<String>,
 }
 
+#[allow(dead_code)]
 impl ErrorContext {
     pub fn new() -> Self {
         Self {
@@ -66,6 +68,7 @@ impl Default for ErrorContext {
     }
 }
 
+#[allow(dead_code)]
 pub type AppResult<T> = Result<T, (AppError, ErrorContext)>;
 
 #[cfg(test)]

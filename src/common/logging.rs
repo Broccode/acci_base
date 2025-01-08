@@ -25,6 +25,7 @@ pub fn setup_logging() {
     tracing::info!("Logging initialized");
 }
 
+#[allow(dead_code)]
 pub fn with_context<F, R>(
     tenant_id: Option<&str>,
     user_id: Option<&str>,

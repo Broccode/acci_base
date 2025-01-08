@@ -2,10 +2,12 @@ use crate::common::error::AppResult;
 use std::time::Duration;
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct CacheConnection {
     // TODO: Implement actual cache connection (Redis, Memcached, etc.)
 }
 
+#[allow(dead_code)]
 impl CacheConnection {
     pub async fn new() -> AppResult<Self> {
         // TODO: Implement actual cache connection

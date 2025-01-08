@@ -117,6 +117,7 @@ Create a git tag for the version (e.g., v0.2.0)
 # [Unreleased]
 
 ### Fixed
+- Suppressed dead code warnings for base components that will be used in future implementations
 - Resolved dead code warnings for ErrorContext fields
 
 ### Technical

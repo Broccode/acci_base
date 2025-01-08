@@ -126,11 +126,12 @@ jobs:
             echo "RUST_TARGET_PATH=/usr/powerpc64le-linux-gnu" >> $GITHUB_ENV
             echo "PKG_CONFIG_PATH=/usr/powerpc64le-linux-gnu/lib/pkgconfig" >> $GITHUB_ENV
             echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
+            echo "AWS_LC_SYS_NO_ASM=1" >> $GITHUB_ENV
             # Configure cargo for PPC64LE cross-compilation
             mkdir -p .cargo
             echo '[target.powerpc64le-unknown-linux-gnu]' > .cargo/config.toml
             echo 'linker = "powerpc64le-linux-gnu-gcc"' >> .cargo/config.toml
-            echo 'rustflags = ["-C", "target-feature=+elfv2"]' >> .cargo/config.toml
+            echo 'rustflags = ["-C", "target-feature=+elfv2", "-C", "target-cpu=ppc64le"]' >> .cargo/config.toml
           fi
 
       - name: Rust Cache

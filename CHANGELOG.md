@@ -184,6 +184,8 @@ Create a git tag for the version (e.g., v0.2.0)
   - Added RUST_TARGET_PATH configuration
   - Configured correct linker for PPC64LE target
   - Added ELFv2 ABI support for PPC64LE builds
+  - Disabled AWS-LC ASM optimizations for PPC64LE
+  - Added proper target CPU configuration
 
 ### Technical
 - Defined Minimum Supported Rust Version (MSRV) as 1.75 in Cargo.toml

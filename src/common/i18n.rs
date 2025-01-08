@@ -5,10 +5,12 @@ use std::sync::Arc;
 
 use fluent::{FluentArgs, FluentResource};
 use fluent_bundle::bundle::FluentBundle as BaseFluentBundle;
-use fluent_langneg::{negotiate_languages, NegotiationStrategy, LanguageIdentifier as FluentLanguageIdentifier};
-use unic_langid::LanguageIdentifier;
+use fluent_langneg::{
+    negotiate_languages, LanguageIdentifier as FluentLanguageIdentifier, NegotiationStrategy,
+};
 use intl_memoizer::concurrent::IntlLangMemoizer;
 use tokio::sync::RwLock;
+use unic_langid::LanguageIdentifier;
 
 /// Supported languages in the application
 #[derive(Debug, Clone, Copy)]
@@ -83,7 +85,7 @@ impl I18nManager {
     /// Gets the best matching bundle for the given language preferences
     pub async fn get_bundle(&self, requested_languages: &[&str]) -> Arc<ConcurrentBundle> {
         let bundles = self.bundles.read().await;
-        
+
         let requested: Vec<FluentLanguageIdentifier> = requested_languages
             .iter()
             .filter_map(|lang| lang.parse().ok())
@@ -150,29 +152,46 @@ impl I18nManager {
     }
 
     /// Creates a FluentBundle for a specific language
-    async fn create_bundle_for_language(lang: SupportedLanguage) -> anyhow::Result<ConcurrentBundle> {
-        let lang_id: LanguageIdentifier = lang.as_str().parse()
+    async fn create_bundle_for_language(
+        lang: SupportedLanguage,
+    ) -> anyhow::Result<ConcurrentBundle> {
+        let lang_id: LanguageIdentifier = lang
+            .as_str()
+            .parse()
             .map_err(|e| anyhow::anyhow!("Failed to parse language identifier: {}", e))?;
         let mut bundle = BaseFluentBundle::new_concurrent(vec![lang_id]);
-        
+
         // Construct the path to the FTL file
         let mut path = PathBuf::from("locales");
         path.push(lang.as_str());
         path.push("main.ftl");
 
         // Read the FTL file
-        let ftl_string = fs::read_to_string(&path)
-            .map_err(|e| anyhow::anyhow!("Failed to read FTL file for language {}: {}", lang.as_str(), e))?;
-        
-        let resource = FluentResource::try_new(ftl_string)
-            .map_err(|_| anyhow::anyhow!("Failed to parse FTL resource for language {}", lang.as_str()))?;
-        
-        bundle.add_resource(resource)
-            .map_err(|_| anyhow::anyhow!("Failed to add resource to bundle for language {}", lang.as_str()))?;
+        let ftl_string = fs::read_to_string(&path).map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to read FTL file for language {}: {}",
+                lang.as_str(),
+                e
+            )
+        })?;
+
+        let resource = FluentResource::try_new(ftl_string).map_err(|_| {
+            anyhow::anyhow!(
+                "Failed to parse FTL resource for language {}",
+                lang.as_str()
+            )
+        })?;
+
+        bundle.add_resource(resource).map_err(|_| {
+            anyhow::anyhow!(
+                "Failed to add resource to bundle for language {}",
+                lang.as_str()
+            )
+        })?;
 
         // Set bundle attributes
         bundle.set_use_isolating(false); // Don't use Unicode isolation marks
-        
+
         Ok(bundle)
     }
 }

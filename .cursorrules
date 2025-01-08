@@ -79,7 +79,7 @@ CI/CD PRACTICES
 - Generate and verify SBOMs
 - Use cargo deny in CI pipeline
 - Implement automated release processes
-- ALWAYS update the CHANGELOG.md under [Unreleased] when making changes and update the version number in package.version (root Cargo.toml) when releasing a new version.
+- ALWAYS update the CHANGELOG.md under [Unreleased] and print out commit message when making changes and update the version number in package.version (root Cargo.toml) when releasing a new version.
 - When Asked to Commit Staged Changes always check changelog to see if the changes in staged files are represented in the changelog before commiting.
 - When releasing: Review [Unreleased] changes to determine version bump (features→minor, fixes→patch, breaking→major), move changes to new version section with date, update package.version (root Cargo.toml), commit as "release: Version X.Y.Z", and create git tag
 

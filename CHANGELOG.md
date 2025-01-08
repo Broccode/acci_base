@@ -129,7 +129,6 @@ Create a git tag for the version (e.g., v0.2.0)
     - URL query parameters (?lang=de)
     - Accept-Language header
     - Fallback to default language
-    - Extension trait for easy access in request handlers
   - Concurrent memoization for improved performance
   - System status messages in all supported languages
 
@@ -186,6 +185,15 @@ Create a git tag for the version (e.g., v0.2.0)
   - Added ELFv2 ABI support for PPC64LE builds
   - Disabled AWS-LC ASM optimizations for PPC64LE
   - Added proper target CPU configuration
+- Removed unused LanguageExt trait and its implementation in favor of direct Extension extraction
+- Marked unused but important functions with #[allow(dead_code)]
+  - setup_request_span in logging module
+  - validate method in Tenant implementation
+  - TenantContext and its methods
+- Removed unused imports across the codebase
+  - Removed http::Request from health module main imports
+  - Removed LanguageExt trait import
+  - Removed TcpListener from health tests
 
 ### Technical
 - Defined Minimum Supported Rust Version (MSRV) as 1.75 in Cargo.toml

@@ -1,4 +1,5 @@
 use axum::Router;
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::{compression::CompressionLayer, cors::CorsLayer, trace::TraceLayer};
@@ -30,7 +31,14 @@ async fn main() -> anyhow::Result<()> {
 
     // Bind to address
     let addr = SocketAddr::from(([127, 0, 0, 1], 3333));
-    info!("Starting server on {}", addr);
+    let server_msg = i18n_manager
+        .format_message(
+            "en",
+            "server-starting",
+            Some(HashMap::from([("address".to_string(), addr.to_string())])),
+        )
+        .await;
+    info!("{}", server_msg);
 
     // Start server
     let listener = tokio::net::TcpListener::bind(addr).await?;

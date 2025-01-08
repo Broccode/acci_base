@@ -67,3 +67,16 @@ validation-required = { $field } ist erforderlich
 validation-invalid-email = Ungültige E-Mail-Adresse
 validation-min-length = { $field } muss mindestens { $length } Zeichen lang sein
 validation-max-length = { $field } darf nicht länger als { $length } Zeichen sein 
+
+# System Status
+system-status-healthy = Funktionsfähig
+system-status-ready = Bereit
+system-ready-message = System ist bereit
+server-starting = Server wird gestartet auf { $address }
+
+# Logging
+log-unknown-tenant = unbekannt
+log-unknown-user = unbekannt
+
+# Tenant Status
+tenant-not-active = Mandant ist nicht aktiv 

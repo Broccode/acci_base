@@ -1,3 +1,4 @@
+use crate::common::i18n::I18nManager;
 use tracing_subscriber::{
     fmt::{self, format::FmtSpan},
     layer::SubscriberExt,
@@ -42,6 +43,24 @@ where
         request_id = %request_id,
     );
     span.in_scope(f)
+}
+
+#[allow(dead_code)]
+pub async fn setup_request_span(
+    tenant_id: Option<&str>,
+    user_id: Option<&str>,
+    request_id: &str,
+    i18n: &I18nManager,
+) -> tracing::Span {
+    let unknown = i18n.format_message("en", "log-unknown-tenant", None).await;
+    let unknown_user = i18n.format_message("en", "log-unknown-user", None).await;
+
+    tracing::info_span!(
+        "request",
+        tenant_id = tenant_id.unwrap_or(&unknown),
+        user_id = user_id.unwrap_or(&unknown_user),
+        request_id = request_id,
+    )
 }
 
 #[cfg(test)]

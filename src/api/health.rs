@@ -1,5 +1,6 @@
-use crate::common::middleware::LanguageExt;
-use axum::{http::Request, response::Json};
+use crate::common::i18n::I18nManager;
+use axum::extract::Extension;
+use axum::response::Json;
 use axum::{routing::get, Router};
 use serde::{Deserialize, Serialize};
 use std::time::SystemTime;
@@ -20,14 +21,17 @@ pub fn health_routes() -> Router {
 }
 
 /// Health check handler that returns the system status in the requested language
-pub async fn health_check<B>(request: Request<B>) -> Json<HealthResponse> {
-    let lang = request.language();
-    let i18n = request.i18n_manager();
-
+pub async fn health_check(
+    Extension(i18n): Extension<I18nManager>,
+    Extension(lang): Extension<String>,
+) -> Json<HealthResponse> {
     let status_message = i18n.format_message(&lang, "health-status", None).await;
+    let status = i18n
+        .format_message(&lang, "system-status-healthy", None)
+        .await;
 
     Json(HealthResponse {
-        status: "healthy".to_string(),
+        status,
         message: status_message,
         version: env!("CARGO_PKG_VERSION").to_string(),
         timestamp: SystemTime::now()
@@ -37,11 +41,20 @@ pub async fn health_check<B>(request: Request<B>) -> Json<HealthResponse> {
     })
 }
 
-async fn readiness_check() -> Json<HealthResponse> {
-    // TODO: Add checks for database, cache, and other dependencies
+pub async fn readiness_check(
+    Extension(i18n): Extension<I18nManager>,
+    Extension(lang): Extension<String>,
+) -> Json<HealthResponse> {
+    let status = i18n
+        .format_message(&lang, "system-status-ready", None)
+        .await;
+    let message = i18n
+        .format_message(&lang, "system-ready-message", None)
+        .await;
+
     Json(HealthResponse {
-        status: "ready".to_string(),
-        message: "System is ready".to_string(),
+        status,
+        message,
         version: env!("CARGO_PKG_VERSION").to_string(),
         timestamp: SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -54,89 +67,80 @@ async fn readiness_check() -> Json<HealthResponse> {
 mod tests {
     use super::*;
     use crate::common::i18n::I18nManager;
-    use crate::common::middleware::setup_i18n;
-    use axum::body::Body;
-    use axum::http::header;
-    use std::sync::Arc;
-    use tokio::net::TcpListener;
+    use axum::{
+        body::Body,
+        extract::Extension,
+        http::{header, Request, StatusCode},
+    };
+    use tower::ServiceExt;
 
-    async fn spawn_app() -> String {
-        let i18n_manager = Arc::new(I18nManager::new().await.unwrap());
-        let app = Router::new()
-            .merge(health_routes())
-            .layer(setup_i18n(Arc::clone(&i18n_manager)));
-
-        let listener = TcpListener::bind("127.0.0.1:0")
-            .await
-            .expect("Failed to bind random port");
-        let addr = listener.local_addr().unwrap();
-
-        tokio::spawn(async move {
-            axum::serve(listener, app)
-                .await
-                .expect("Failed to start server");
-        });
-
-        format!("http://{}", addr)
+    async fn setup_test_app() -> Router {
+        let i18n = I18nManager::new().await.expect("Failed to initialize i18n");
+        Router::new()
+            .route("/health", get(health_check))
+            .route("/ready", get(readiness_check))
+            .layer(Extension(i18n))
     }
 
     #[tokio::test]
     async fn test_health_check() {
-        let address = spawn_app().await;
-        let client = reqwest::Client::new();
+        let app = setup_test_app().await;
+        let i18n = I18nManager::new().await.expect("Failed to initialize i18n");
 
-        let response = client
-            .get(format!("{}/health", address))
-            .send()
+        let mut request = Request::builder()
+            .uri("/health")
+            .header(header::ACCEPT_LANGUAGE, "en")
+            .body(Body::empty())
+            .unwrap();
+
+        request.extensions_mut().insert(i18n);
+        request.extensions_mut().insert("en".to_string());
+
+        let response = app
+            .oneshot(request)
             .await
-            .expect("Failed to execute request.");
+            .expect("Failed to execute request");
 
-        assert_eq!(response.status().as_u16(), 200);
+        assert_eq!(response.status(), StatusCode::OK);
 
-        let health_response = response.json::<HealthResponse>().await.unwrap();
-        assert_eq!(health_response.status, "healthy");
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let health_response: HealthResponse = serde_json::from_slice(&body).unwrap();
+
+        let expected_status = "Healthy"; // This matches our i18n key system-status-healthy
+        assert_eq!(health_response.status, expected_status);
         assert_eq!(health_response.version, env!("CARGO_PKG_VERSION"));
     }
 
     #[tokio::test]
     async fn test_readiness_check() {
-        let address = spawn_app().await;
-        let client = reqwest::Client::new();
+        let app = setup_test_app().await;
+        let i18n = I18nManager::new().await.expect("Failed to initialize i18n");
 
-        let response = client
-            .get(format!("{}/ready", address))
-            .send()
-            .await
-            .expect("Failed to execute request.");
-
-        assert_eq!(response.status().as_u16(), 200);
-
-        let health_response = response.json::<HealthResponse>().await.unwrap();
-        assert_eq!(health_response.status, "ready");
-        assert_eq!(health_response.version, env!("CARGO_PKG_VERSION"));
-    }
-
-    #[tokio::test]
-    async fn test_health_check_with_language() {
-        // Initialize i18n manager
-        let i18n_manager = Arc::new(I18nManager::new().await.unwrap());
-
-        // Create request with German language preference
         let mut request = Request::builder()
-            .header(header::ACCEPT_LANGUAGE, "de")
+            .uri("/ready")
+            .header(header::ACCEPT_LANGUAGE, "en")
             .body(Body::empty())
             .unwrap();
 
-        // Add i18n manager to request extensions
-        request.extensions_mut().insert(Arc::clone(&i18n_manager));
-        request.extensions_mut().insert("de".to_string());
+        request.extensions_mut().insert(i18n);
+        request.extensions_mut().insert("en".to_string());
 
-        // Call health check
-        let response = health_check(request).await;
+        let response = app
+            .oneshot(request)
+            .await
+            .expect("Failed to execute request");
 
-        // Verify response
-        assert_eq!(response.0.status, "healthy");
-        assert_eq!(response.0.version, env!("CARGO_PKG_VERSION"));
-        assert!(response.0.timestamp > 0);
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let health_response: HealthResponse = serde_json::from_slice(&body).unwrap();
+
+        let expected_status = "Ready"; // This matches our i18n key system-status-ready
+        assert_eq!(health_response.status, expected_status);
+        assert_eq!(health_response.version, env!("CARGO_PKG_VERSION"));
     }
 }

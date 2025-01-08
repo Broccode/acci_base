@@ -1,4 +1,5 @@
 use crate::common::error::{AppError, AppResult, ErrorContext};
+use crate::common::i18n::I18nManager;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -51,6 +52,17 @@ impl TenantContext {
                     .with_tenant(self.tenant.id.to_string())
                     .with_request(self.request_id.clone()),
             ));
+        }
+        Ok(())
+    }
+}
+
+impl Tenant {
+    #[allow(dead_code)]
+    pub async fn validate(&self, i18n: &I18nManager, lang: &str) -> Result<(), AppError> {
+        if !self.is_active {
+            let msg = i18n.format_message(lang, "tenant-not-active", None).await;
+            return Err(AppError::Tenant(msg));
         }
         Ok(())
     }

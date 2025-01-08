@@ -102,28 +102,6 @@ where
     }
 }
 
-// Extension trait for easy access to the current language
-pub trait LanguageExt {
-    fn language(&self) -> String;
-    fn i18n_manager(&self) -> Arc<I18nManager>;
-}
-
-impl<B> LanguageExt for Request<B> {
-    fn language(&self) -> String {
-        self.extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| DEFAULT_LANGUAGE.to_string())
-    }
-
-    fn i18n_manager(&self) -> Arc<I18nManager> {
-        self.extensions()
-            .get::<Arc<I18nManager>>()
-            .cloned()
-            .expect("I18nManager not found in request extensions")
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -25,12 +25,7 @@ COPY --from=builder /app /app
 RUN trivy fs --severity HIGH,CRITICAL --exit-code 1 /app
 
 # Final stage
-FROM debian:bookworm-slim
-
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+FROM gcr.io/distroless/cc
 
 # Copy binary, SBOM and user info
 COPY --from=builder /app/target/release/acci_base /app/acci_base

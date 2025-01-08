@@ -164,6 +164,7 @@ Create a git tag for the version (e.g., v0.2.0)
 - Fixed test assertions for health checks
 - Improved type safety in language middleware
 - Streamlined error propagation in service implementations
+- Fixed container structure test configuration to use correct schema for environment variables
 
 ### Technical
 - Defined Minimum Supported Rust Version (MSRV) as 1.75 in Cargo.toml

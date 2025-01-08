@@ -10,7 +10,7 @@ fileExistenceTests:
     permissions: '-rwxr-xr-x'
 
 metadataTest:
-  env:
+  envVars:
     - key: RUST_BACKTRACE
       value: "0"
     - key: RUST_LOG

@@ -173,20 +173,53 @@ impl I18nManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+
+    fn setup_test_translations() -> AppResult<()> {
+        let test_content = "test-message = Test message content";
+        let test_dirs = ["en", "de", "fr", "es", "sq"];
+
+        for dir in test_dirs.iter() {
+            let dir_path = PathBuf::from("locales").join(dir);
+            fs::create_dir_all(&dir_path).map_err(|e| {
+                (
+                    AppError::I18n(format!("Failed to create directory: {:?}", e)),
+                    Default::default(),
+                )
+            })?;
+
+            let file_path = dir_path.join("main.ftl");
+            fs::write(&file_path, test_content).map_err(|e| {
+                (
+                    AppError::I18n(format!("Failed to write file: {:?}", e)),
+                    Default::default(),
+                )
+            })?;
+        }
+        Ok(())
+    }
+
+    fn cleanup_test_translations() {
+        let _ = fs::remove_dir_all("locales");
+    }
 
     #[tokio::test]
     async fn test_i18n_manager_creation() -> AppResult<()> {
+        setup_test_translations()?;
         let manager = I18nManager::new().await?;
         let bundle = manager.get_bundle("en").await?;
         assert!(bundle.has_message("test-message"));
+        cleanup_test_translations();
         Ok(())
     }
 
     #[tokio::test]
     async fn test_format_message() -> AppResult<()> {
+        setup_test_translations()?;
         let manager = I18nManager::new().await?;
         let message = manager.format_message("en", "test-message", None).await;
-        assert!(!message.is_empty());
+        assert_eq!(message, "Test message content");
+        cleanup_test_translations();
         Ok(())
     }
 }

@@ -204,3 +204,7 @@ Create a git tag for the version (e.g., v0.2.0)
   - Improved SARIF report handling for security scans
   - Added write permissions for security events and pull requests
   - Enhanced access control for GitHub token usage
+  - Integrated Docker Scout scanning with proper authentication
+  - Added SARIF output for Docker Scout results
+  - Improved security scanning results visualization in GitHub
+  - Added automated Docker Hub authentication for security scans

@@ -137,6 +137,12 @@ jobs:
             exit 1
           fi
 
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Run Docker Scout
         uses: docker/scout-action@v1
         with:
@@ -144,6 +150,20 @@ jobs:
           image: acci:latest
           only-severities: critical,high
           exit-code: true
+          summary: true
+          format: json
+          sarif-file: docker-scout-results.sarif
+        env:
+          DOCKER_SCOUT_HUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKER_SCOUT_HUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Upload Docker Scout results
+        uses: github/codeql-action/upload-sarif@v3
+        if: success() && hashFiles('docker-scout-results.sarif') != ''
+        with:
+          sarif_file: docker-scout-results.sarif
+          category: docker-scout
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check for outdated base images
         uses: aquasecurity/trivy-action@master

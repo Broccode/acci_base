@@ -12,9 +12,21 @@ repos:
             benches/.*|
             examples/.*
           )$
+      - id: cargo-fmt
+        name: Cargo Format
+        entry: cargo fmt --all
+        language: system
+        types: [rust]
+        pass_filenames: false
       - id: cargo-check
         name: Cargo Check
         entry: cargo check
+        language: system
+        types: [rust]
+        pass_filenames: false
+      - id: cargo-clippy
+        name: Cargo Clippy
+        entry: cargo clippy
         language: system
         types: [rust]
         pass_filenames: false

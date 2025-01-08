@@ -11,4 +11,10 @@ repos:
             tests/.*|
             benches/.*|
             examples/.*
-          )$ 
+          )$
+      - id: cargo-check
+        name: Cargo Check
+        entry: cargo check
+        language: system
+        types: [rust]
+        pass_filenames: false

@@ -26,6 +26,7 @@ pub enum AppError {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ErrorContext {
     pub error_id: Uuid,
     pub tenant_id: Option<String>,

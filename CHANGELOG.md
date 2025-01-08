@@ -116,6 +116,9 @@ Create a git tag for the version (e.g., v0.2.0)
 
 # [Unreleased]
 
+### Fixed
+- Resolved dead code warnings for ErrorContext fields
+
 ### Technical
 - Defined Minimum Supported Rust Version (MSRV) as 1.75 in Cargo.toml
 

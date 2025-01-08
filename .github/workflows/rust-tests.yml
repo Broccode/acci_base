@@ -117,11 +117,16 @@ jobs:
       - name: Install cross-compilation dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-powerpc64le-linux-gnu cmake clang llvm-dev libclang-dev
+          sudo apt-get install -y gcc-powerpc64le-linux-gnu cmake clang llvm-dev libclang-dev libc6-dev-ppc64el-cross
           cargo install --force --locked bindgen-cli
           # Set environment variables for aws-lc-sys
-          echo "AWS_LC_SYS_EXTERNAL_BINDGEN=1" >> $GITHUB_ENV
-          echo "BINDGEN_EXTRA_CLANG_ARGS=--sysroot=/usr/powerpc64le-linux-gnu" >> $GITHUB_ENV
+          if [ "${{ matrix.platform.target }}" = "powerpc64le-unknown-linux-gnu" ]; then
+            echo "AWS_LC_SYS_EXTERNAL_BINDGEN=1" >> $GITHUB_ENV
+            echo "BINDGEN_EXTRA_CLANG_ARGS=--sysroot=/usr/powerpc64le-linux-gnu -target powerpc64le-unknown-linux-gnu" >> $GITHUB_ENV
+            echo "RUST_TARGET_PATH=/usr/powerpc64le-linux-gnu" >> $GITHUB_ENV
+            echo "PKG_CONFIG_PATH=/usr/powerpc64le-linux-gnu/lib/pkgconfig" >> $GITHUB_ENV
+            echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
+          fi
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2

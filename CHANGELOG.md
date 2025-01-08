@@ -177,6 +177,11 @@ Create a git tag for the version (e.g., v0.2.0)
 - Removed redundant doc test step from CI configurations
   - Documentation tests are already included in the main test suite
   - Simplified test steps in GitHub Actions and GitLab CI
+- Enhanced PPC64LE cross-compilation support
+  - Added libc6-dev-ppc64el-cross for required system headers
+  - Improved bindgen configuration with correct target triple
+  - Set up proper pkg-config environment for cross-compilation
+  - Added RUST_TARGET_PATH configuration
 
 ### Technical
 - Defined Minimum Supported Rust Version (MSRV) as 1.75 in Cargo.toml

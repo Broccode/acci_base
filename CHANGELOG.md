@@ -209,6 +209,16 @@ Create a git tag for the version (e.g., v0.2.0)
   - Applied to main function for server startup logging
   - Applied to database connection error logging
   - Maintains code quality while allowing necessary logging functionality
+- Added missing build dependencies for aws-lc-sys
+  - Added cmake, clang, and LLVM development packages
+  - Added cross-compilation support for PPC64LE
+  - Fixed build environment variables for cross-compilation
+  - Optimized multi-architecture build process
+- Streamlined CI/CD pipelines
+  - Simplified GitHub Actions workflow
+  - Enhanced GitLab CI configuration
+  - Improved build caching strategy
+  - Optimized security scanning process
 
 ### Technical
 - Defined Minimum Supported Rust Version (MSRV) as 1.75 in Cargo.toml

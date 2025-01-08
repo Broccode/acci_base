@@ -1,0 +1,55 @@
+# Complexity thresholds
+cognitive-complexity-threshold = 20
+too-many-arguments-threshold = 7
+type-complexity-threshold = 250
+max-fn-params-bools = 3
+max-struct-bools = 3
+array-size-threshold = 16
+
+# Import controls
+warn-on-all-wildcard-imports = true
+
+# Documentation requirements
+doc-valid-idents = [
+    "test",
+    "derive",
+    "doc",
+    "cfg"
+]
+missing-docs-in-crate-items = true
+
+# Error handling and safety
+disallowed-methods = [
+    "std::option::Option::unwrap",
+    "std::result::Result::unwrap",
+    "std::option::Option::expect",
+    "std::result::Result::expect"
+]
+
+# Testing and development aids
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+
+# Performance thresholds
+pass-by-value-size-limit = 128
+unnecessary-box-size = 512
+vec-box-size-threshold = 512
+
+# Async/await safety
+await-holding-invalid-types = []
+
+# Code organization
+check-private-items = true
+
+# Additional safety checks
+arithmetic-side-effects-allowed = []
+arithmetic-side-effects-allowed-binary = []
+arithmetic-side-effects-allowed-unary = []
+
+# Type system
+max-trait-bounds = 3
+enforce-iter-loop-reborrow = true
+
+# Security considerations
+enable-raw-pointer-heuristic-for-send = true

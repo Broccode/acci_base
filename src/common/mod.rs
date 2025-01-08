@@ -3,4 +3,4 @@ pub mod i18n;
 pub mod logging;
 pub mod middleware;
 
-pub use logging::setup_logging;
+pub use logging::init as setup_logging;

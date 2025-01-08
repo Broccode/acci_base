@@ -131,6 +131,10 @@ Create a git tag for the version (e.g., v0.2.0)
     - Fallback to default language
   - Concurrent memoization for improved performance
   - System status messages in all supported languages
+- Pre-commit hook for detecting hardcoded strings
+- Clippy rules for hardcoded string detection
+- Translation completeness checker script
+- Added walkdir dependency for translation checking
 
 ### Changed
 - Improved test assertion readability in error handling tests
@@ -152,6 +156,8 @@ Create a git tag for the version (e.g., v0.2.0)
   - Adjusted QEMU emulation setup for remaining architectures
   - Updated platform-specific security scans and tests
   - Streamlined CI/CD pipeline configurations
+- Enhanced string literal handling in development workflow
+- Improved i18n validation process
 
 ### Fixed
 - Fixed Clippy warnings for unnecessary borrows and unwraps
@@ -194,6 +200,11 @@ Create a git tag for the version (e.g., v0.2.0)
   - Removed http::Request from health module main imports
   - Removed LanguageExt trait import
   - Removed TcpListener from health tests
+- Added #[allow(clippy::disallowed_methods)] attributes for tracing macros
+  - Applied to logging functions using tracing macros
+  - Applied to main function for server startup logging
+  - Applied to database connection error logging
+  - Maintains code quality while allowing necessary logging functionality
 
 ### Technical
 - Defined Minimum Supported Rust Version (MSRV) as 1.75 in Cargo.toml

@@ -1,9 +1,7 @@
 use axum::Router;
-use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::{compression::CompressionLayer, cors::CorsLayer, trace::TraceLayer};
-use tracing::info;
 
 use crate::common::i18n::I18nManager;
 use crate::common::middleware::setup_i18n;
@@ -14,12 +12,24 @@ mod domain;
 mod infrastructure;
 
 #[tokio::main]
+#[allow(clippy::disallowed_methods)]
 async fn main() -> anyhow::Result<()> {
     // Initialize logging
-    common::setup_logging();
+    common::setup_logging().map_err(|e| anyhow::anyhow!("{}", e))?;
 
     // Initialize i18n
-    let i18n_manager = Arc::new(I18nManager::new().await?);
+    let i18n_manager = Arc::new(
+        I18nManager::new()
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e.0))?,
+    );
+
+    // Initialize cache
+    let _cache = Arc::new(
+        infrastructure::cache::CacheConnection::new()
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e.0))?,
+    );
 
     // Build application
     let app = Router::new()
@@ -31,14 +41,8 @@ async fn main() -> anyhow::Result<()> {
 
     // Bind to address
     let addr = SocketAddr::from(([127, 0, 0, 1], 3333));
-    let server_msg = i18n_manager
-        .format_message(
-            "en",
-            "server-starting",
-            Some(HashMap::from([("address".to_string(), addr.to_string())])),
-        )
-        .await;
-    info!("{}", server_msg);
+    let server_msg = format!("Server running at http://{}:{}", addr.ip(), addr.port());
+    tracing::info!("{}", server_msg);
 
     // Start server
     let listener = tokio::net::TcpListener::bind(addr).await?;

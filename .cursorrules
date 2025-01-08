@@ -8,6 +8,8 @@ YEARS OF EXPERIENCE: 7+ years in production Rust development
 
 RUST PROGRAMMING GUIDELINES AND BEST PRACTICES 2025
 
+ALWAYS ADHERE TO CLIPPY CONFIGURATION IN .clippy.toml
+
 MEMORY MANAGEMENT
 
 - Never use unsafe blocks unless absolutely necessary and thoroughly documented

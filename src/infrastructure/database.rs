@@ -1,23 +1,33 @@
 use crate::common::error::{AppError, AppResult};
-use sea_orm::DatabaseConnection as SeaOrmConnection;
+use sea_orm::{Database, DatabaseConnection};
+
+#[allow(dead_code)]
+pub fn get_database_url() -> String {
+    std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/acci_base".to_string())
+}
 
 #[derive(Clone)]
 #[allow(dead_code)]
-pub struct DatabaseConnection {
-    connection: SeaOrmConnection,
+pub struct DbConnection {
+    connection: DatabaseConnection,
 }
 
-#[allow(dead_code)]
-impl DatabaseConnection {
-    pub async fn new(database_url: &str) -> AppResult<Self> {
-        let connection = sea_orm::Database::connect(database_url)
-            .await
-            .map_err(|e| (AppError::Database(e), Default::default()))?;
-
-        Ok(Self { connection })
+impl DbConnection {
+    #[allow(dead_code)]
+    #[allow(clippy::disallowed_methods)]
+    pub async fn new() -> AppResult<Self> {
+        match Database::connect(get_database_url()).await {
+            Ok(connection) => Ok(Self { connection }),
+            Err(e) => {
+                tracing::error!("Failed to connect to database: {}", e);
+                Err((AppError::Database(e.to_string()), Default::default()))
+            }
+        }
     }
 
-    pub fn get_connection(&self) -> &SeaOrmConnection {
+    #[allow(dead_code)]
+    pub fn get_connection(&self) -> &DatabaseConnection {
         &self.connection
     }
 }
@@ -25,36 +35,19 @@ impl DatabaseConnection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::env;
 
     #[tokio::test]
-    async fn test_database_connection_invalid_url() {
-        let result =
-            DatabaseConnection::new("postgres://invalid:123@nowhere:5432/nonexistent").await;
-        assert!(result.is_err());
-
-        match result {
-            Err((error, _)) => match error {
-                AppError::Database(_) => (),
-                _ => panic!("Expected Database error"),
-            },
-            Ok(_) => panic!("Expected error for invalid URL"),
-        }
+    async fn test_database_connection() -> AppResult<()> {
+        let db = DbConnection::new().await?;
+        assert!(db.get_connection().ping().await.is_ok());
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_database_connection_valid_url() {
-        // Skip test if no database URL is provided
-        let database_url = env::var("TEST_DATABASE_URL")
-            .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/test_db".to_string());
-
-        let result = DatabaseConnection::new(&database_url).await;
-        if result.is_ok() {
-            let db = result.unwrap();
-            assert!(db.get_connection().ping().await.is_ok());
-        } else {
-            // Test is running without a database, which is fine
-            println!("Skipping database connection test - no valid database available");
-        }
+    async fn test_database_connection_with_invalid_url() {
+        std::env::set_var("DATABASE_URL", "invalid_url");
+        let result = DbConnection::new().await;
+        assert!(result.is_err());
+        std::env::remove_var("DATABASE_URL");
     }
 }

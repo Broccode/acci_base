@@ -54,3 +54,4 @@ intl-memoizer = "0.5"
 tokio-test = "0.4"
 pretty_assertions = "1.4"
 reqwest = { version = "0.12.12", features = ["json"] }
+walkdir = "2.4.0"

@@ -24,7 +24,8 @@ pub fn init() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::registry()
         .with(env_filter)
         .with(formatting_layer)
-        .try_init()?;
+        .try_init()
+        .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
 
     tracing::info!("Logging initialized");
     Ok(())

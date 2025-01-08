@@ -1,8 +1,9 @@
-use crate::common::i18n::I18nManager;
+use crate::common::{error::AppError, i18n::I18nManager};
 use axum::{
     debug_handler,
     extract::{Extension, Query},
-    response::Json,
+    http::StatusCode,
+    response::{IntoResponse, Json},
     routing::get,
     Router,
 };
@@ -23,6 +24,29 @@ pub struct HealthResponse {
     timestamp: u64,
 }
 
+#[derive(Serialize)]
+struct ErrorResponse {
+    error: String,
+}
+
+impl IntoResponse for AppError {
+    fn into_response(self) -> axum::response::Response {
+        let status = match self {
+            AppError::Database(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::Auth(_) => StatusCode::UNAUTHORIZED,
+            AppError::Validation(_) => StatusCode::BAD_REQUEST,
+            AppError::I18n(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::Tenant(_) => StatusCode::BAD_REQUEST,
+        };
+
+        let error_response = ErrorResponse {
+            error: self.to_string(),
+        };
+
+        (status, Json(error_response)).into_response()
+    }
+}
+
 pub fn health_routes() -> Router {
     Router::new()
         .route("/health", get(health_check))
@@ -33,7 +57,7 @@ pub fn health_routes() -> Router {
 async fn health_check(
     Query(query): Query<LanguageQuery>,
     Extension(i18n): Extension<Arc<I18nManager>>,
-) -> Json<HealthResponse> {
+) -> Result<Json<HealthResponse>, AppError> {
     let lang = query.lang.unwrap_or_else(|| "en".to_string());
     let status_message = i18n.format_message(&lang, "health-status", None).await;
     let status = i18n
@@ -43,21 +67,21 @@ async fn health_check(
     let timestamp = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .map(|d| d.as_secs())
-        .unwrap_or(0);
+        .map_err(|e| AppError::Database(format!("Failed to get system time: {}", e)))?;
 
-    Json(HealthResponse {
+    Ok(Json(HealthResponse {
         status,
         message: status_message,
         version: env!("CARGO_PKG_VERSION").to_string(),
         timestamp,
-    })
+    }))
 }
 
 #[debug_handler]
 async fn readiness_check(
     Query(query): Query<LanguageQuery>,
     Extension(i18n): Extension<Arc<I18nManager>>,
-) -> Json<HealthResponse> {
+) -> Result<Json<HealthResponse>, AppError> {
     let lang = query.lang.unwrap_or_else(|| "en".to_string());
     let status = i18n
         .format_message(&lang, "system-status-ready", None)
@@ -69,14 +93,14 @@ async fn readiness_check(
     let timestamp = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .map(|d| d.as_secs())
-        .unwrap_or(0);
+        .map_err(|e| AppError::Database(format!("Failed to get system time: {}", e)))?;
 
-    Json(HealthResponse {
+    Ok(Json(HealthResponse {
         status,
         message,
         version: env!("CARGO_PKG_VERSION").to_string(),
         timestamp,
-    })
+    }))
 }
 
 #[cfg(test)]

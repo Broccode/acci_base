@@ -76,7 +76,7 @@ where
                 .headers()
                 .get(ACCEPT_LANGUAGE_HEADER)
                 .and_then(|h| h.to_str().ok())
-                .map(|h| h.split(',').next().unwrap_or(DEFAULT_LANGUAGE))
+                .and_then(|h| h.split(',').next())
                 .unwrap_or(DEFAULT_LANGUAGE);
 
             // Determine the language to use

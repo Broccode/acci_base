@@ -81,21 +81,21 @@ mod tests {
     fn test_error_context_with_tenant() {
         let tenant_id = "test-tenant";
         let context = ErrorContext::new().with_tenant(tenant_id);
-        assert_eq!(context.tenant_id.unwrap(), tenant_id);
+        assert_eq!(context.tenant_id.as_deref(), Some(tenant_id));
     }
 
     #[test]
     fn test_error_context_with_user() {
         let user_id = "test-user";
         let context = ErrorContext::new().with_user(user_id);
-        assert_eq!(context.user_id.unwrap(), user_id);
+        assert_eq!(context.user_id.as_deref(), Some(user_id));
     }
 
     #[test]
     fn test_error_context_with_request() {
         let request_id = "test-request";
         let context = ErrorContext::new().with_request(request_id);
-        assert_eq!(context.request_id.unwrap(), request_id);
+        assert_eq!(context.request_id.as_deref(), Some(request_id));
     }
 
     #[test]
@@ -109,9 +109,9 @@ mod tests {
             .with_user(user_id)
             .with_request(request_id);
 
-        assert_eq!(context.tenant_id.unwrap(), tenant_id);
-        assert_eq!(context.user_id.unwrap(), user_id);
-        assert_eq!(context.request_id.unwrap(), request_id);
+        assert_eq!(context.tenant_id.as_deref(), Some(tenant_id));
+        assert_eq!(context.user_id.as_deref(), Some(user_id));
+        assert_eq!(context.request_id.as_deref(), Some(request_id));
     }
 
     #[test]

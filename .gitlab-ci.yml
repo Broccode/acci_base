@@ -71,6 +71,11 @@ cross-platform-test:
         export RUST_TARGET_PATH=/usr/powerpc64le-linux-gnu
         export PKG_CONFIG_PATH=/usr/powerpc64le-linux-gnu/lib/pkgconfig
         export PKG_CONFIG_ALLOW_CROSS=1
+        # Configure cargo for PPC64LE cross-compilation
+        mkdir -p .cargo
+        echo '[target.powerpc64le-unknown-linux-gnu]' > .cargo/config.toml
+        echo 'linker = "powerpc64le-linux-gnu-gcc"' >> .cargo/config.toml
+        echo 'rustflags = ["-C", "target-feature=+elfv2"]' >> .cargo/config.toml
       fi
   script:
     - cargo build --target $TARGET --verbose

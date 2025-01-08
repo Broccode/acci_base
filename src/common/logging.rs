@@ -56,7 +56,7 @@ mod tests {
     fn setup_test_logging() {
         INIT.call_once(|| {
             let env_filter = EnvFilter::new("debug");
-            let test_writer = TestWriter::new();
+            let _test_writer = TestWriter::new();
             let formatting_layer = fmt::layer()
                 .with_test_writer()
                 .with_target(true)

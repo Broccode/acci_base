@@ -160,6 +160,31 @@ COPY --from=builder /app/target/release/acci /
 ENTRYPOINT ["/acci"]
 ```
 
+### Platform Support
+```rust
+#[derive(PlatformSupport)]
+struct SupportedPlatforms {
+    #[platform(
+        architecture = "amd64",
+        os = ["linux", "windows", "macos"],
+        tier = "tier1"
+    )]
+    amd64_support: Amd64Platform,
+
+    #[platform(
+        architecture = "ppc64le",
+        os = ["linux"],
+        tier = "tier2",
+        requirements = [
+            "libc6-dev-ppc64el-cross",
+            "bindgen-cli",
+            "aws-lc"
+        ]
+    )]
+    ppc64le_support: Ppc64lePlatform,
+}
+```
+
 ### Service Mesh Requirements
 ```rust
 #[derive(ServiceMesh)]
@@ -426,6 +451,68 @@ struct I18nConfig {
 
     #[fallback_language("en")]
     fallback_config: FallbackConfig,
+
+    #[thread_safety(
+        memoization = true,
+        concurrent_access = true
+    )]
+    safety_config: ThreadSafetyConfig,
+
+    #[middleware(
+        query_param = "lang",
+        header = "Accept-Language",
+        cookie = "preferred_language"
+    )]
+    detection_config: LanguageDetectionConfig,
+}
+```
+
+### Message Categories
+```rust
+#[derive(MessageCategories)]
+struct TranslationCategories {
+    #[category("errors")]
+    error_messages: ErrorMessages,
+    
+    #[category("system")]
+    system_messages: SystemMessages,
+    
+    #[category("validation")]
+    validation_messages: ValidationMessages,
+    
+    #[category("ui")]
+    ui_messages: UIMessages,
+    
+    #[category("emails")]
+    email_templates: EmailTemplates,
+}
+```
+
+### CI/CD Integration
+```rust
+#[derive(CIPipeline)]
+struct CIConfig {
+    #[provider(
+        github = true,
+        gitlab = true
+    )]
+    ci_providers: CIProviders,
+
+    #[security(
+        sbom = true,
+        container_scan = true,
+        dependency_audit = true,
+        cosign = true
+    )]
+    security_checks: SecurityConfig,
+
+    #[testing(
+        unit = true,
+        integration = true,
+        coverage = true,
+        msrv = "1.75"
+    )]
+    test_config: TestingConfig,
 }
 ```
 

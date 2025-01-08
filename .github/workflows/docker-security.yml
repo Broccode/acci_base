@@ -17,6 +17,7 @@ on:
 
 env:
   DOCKER_BUILDKIT: "1"
+  PLATFORMS: linux/amd64,linux/ppc64le
 
 permissions: write-all
 
@@ -35,17 +36,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          platforms: ${{ env.PLATFORMS }}
 
       - name: Set up Cosign
         uses: sigstore/cosign-installer@v3.1.1
 
-      - name: Build Docker image
+      - name: Build Docker images
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./docker/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
           load: true
           tags: acci:latest
           cache-from: type=gha
@@ -53,24 +60,37 @@ jobs:
           provenance: false
           sbom: false
 
+      - name: Generate SBOM for all architectures
+        run: |
+          for platform in $(echo ${{ env.PLATFORMS }} | tr ',' ' '); do
+            docker buildx build --platform $platform \
+              --build-arg BUILDPLATFORM=$platform \
+              --build-arg TARGETPLATFORM=$platform \
+              -t acci:$platform .
+            
+            # Extract SBOM for each architecture
+            docker create --name temp-$platform acci:$platform
+            docker cp temp-$platform:/app/bom.json ./bom-$platform.json
+            docker rm temp-$platform
+          done
+
+      - name: Run Trivy vulnerability scanner for all architectures
+        run: |
+          for platform in $(echo ${{ env.PLATFORMS }} | tr ',' ' '); do
+            trivy image --platform $platform \
+              acci:$platform \
+              -f sarif \
+              -o trivy-results-$platform.sarif \
+              --severity CRITICAL,HIGH,MEDIUM \
+              --timeout 10m
+          done
+
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
         with:
           image: acci:latest
           format: cyclonedx-json
           output-file: ./container-bom.json
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        if: success()  # Only run if build succeeds
-        with:
-          image-ref: 'acci:latest'
-          format: 'sarif'
-          output: './trivy-results.sarif'
-          severity: 'CRITICAL,HIGH,MEDIUM'
-          timeout: '10m'
-          ignore-unfixed: false
-          scan-type: 'image'
 
       # Additional Trivy scans for config and secrets
       - name: Run Trivy config scanner
@@ -179,11 +199,13 @@ jobs:
             cp ./docker/.container-structure-test.yaml.dist ./docker/.container-structure-test.yaml
           fi
 
-      - name: Run Container Structure Test
-        uses: plexsystems/container-structure-test-action@v0.3.0
-        with:
-          image: acci:latest
-          config: ./docker/.container-structure-test.yaml
+      - name: Run Container Structure Test for all architectures
+        run: |
+          for platform in $(echo ${{ env.PLATFORMS }} | tr ',' ' '); do
+            container-structure-test test \
+              --image acci:$platform \
+              --config ./docker/.container-structure-test.yaml
+          done
 
   dependency-audit:
     runs-on: ubuntu-latest

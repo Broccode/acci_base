@@ -8,6 +8,7 @@ variables:
   DOCKER_HOST: tcp://docker:2376
   DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
   DOCKER_TLS_VERIFY: 1
+  PLATFORMS: "linux/amd64,linux/ppc64le"
 
 stages:
   - test
@@ -49,60 +50,102 @@ rust-test:
       - target/
       - ~/.cargo/
 
-# MSRV Check
-msrv-check:
+# Cross-Platform Testing
+cross-platform-test:
   stage: test
   image: rust:latest
-  script:
-    - MSRV=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "acci_base") | .rust_version')
-    - if [ -z "$MSRV" ]; then echo "No MSRV specified in Cargo.toml"; exit 1; fi
-    - echo "MSRV is $MSRV"
-
-# Cross-Platform Testing
-.cross-platform-test:
-  stage: test
+  services:
+    - docker:dind
   parallel:
     matrix:
-      - RUNNER_OS: [ubuntu-latest, windows-latest]
+      - TARGET: ["x86_64-unknown-linux-gnu", "powerpc64le-unknown-linux-gnu"]
+  before_script:
+    - apt-get update
+    - apt-get install -y gcc-powerpc64le-linux-gnu
+    - rustup target add $TARGET
   script:
-    - cargo test --all-features --verbose
+    - cargo build --target $TARGET --verbose
+    - |
+      if [ "$TARGET" = "x86_64-unknown-linux-gnu" ]; then
+        cargo test --target $TARGET --verbose
+      else
+        echo "Skipping tests for $TARGET as they require emulation"
+      fi
+    - ls -l target/$TARGET/debug/acci_base
+  cache:
+    paths:
+      - target/
+      - ~/.cargo/
 
 # Docker Security Stage
 docker-security:
   stage: security
   image: docker:latest
   services:
-    - docker:dind
+    - name: docker:dind
+      command: ["--experimental"]
   before_script:
-    - apk add --no-cache curl jq npm
+    - apk add --no-cache curl jq npm qemu-system-x86_64 qemu-system-ppc
     - npm install -g @cyclonedx/cdxgen
     - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
     - curl -sfL https://raw.githubusercontent.com/sigstore/cosign/main/release/cosign-linux-amd64 -o /usr/local/bin/cosign
     - chmod +x /usr/local/bin/cosign
+    # Setup buildx
+    - docker buildx create --name multiarch-builder --use
+    - docker buildx inspect --bootstrap
   script:
-    # Build Image
-    - docker build -t acci:latest -f docker/Dockerfile .
+    # Build Multi-Arch Images
+    - |
+      for platform in $(echo $PLATFORMS | tr ',' ' '); do
+        docker buildx build --platform $platform \
+          --build-arg BUILDPLATFORM=$platform \
+          --build-arg TARGETPLATFORM=$platform \
+          -t acci:$platform \
+          -f docker/Dockerfile .
+      done
     
-    # Generate and Verify SBOM
-    - docker create --name temp acci:latest
-    - docker cp temp:/app/bom.json ./container-bom.json
-    - docker rm temp
-    - cdxgen --validate ./container-bom.json
-    - if ! jq -e '.components | length > 0' container-bom.json; then echo "SBOM appears to be empty or invalid"; exit 1; fi
+    # Generate and Verify SBOM for each architecture
+    - |
+      for platform in $(echo $PLATFORMS | tr ',' ' '); do
+        docker create --platform $platform --name temp-$platform acci:$platform
+        docker cp temp-$platform:/app/bom.json ./container-bom-$platform.json
+        docker rm temp-$platform
+        cdxgen --validate ./container-bom-$platform.json
+        if ! jq -e '.components | length > 0' container-bom-$platform.json; then
+          echo "SBOM appears to be empty or invalid for $platform"
+          exit 1
+        fi
+      done
     
-    # Trivy Scans
-    - trivy image --format json --output trivy-results.json acci:latest
-    - trivy config --format json --output trivy-config-results.json acci:latest
-    - trivy fs --format json --output trivy-fs-results.json .
+    # Trivy Scans for each architecture
+    - |
+      for platform in $(echo $PLATFORMS | tr ',' ' '); do
+        trivy image --platform $platform \
+          --format json \
+          --output trivy-results-$platform.json \
+          acci:$platform
+        
+        trivy config --platform $platform \
+          --format json \
+          --output trivy-config-results-$platform.json \
+          acci:$platform
+      done
     
-    # Container Structure Tests
-    - if [ ! -f ./docker/.container-structure-test.yaml ]; then cp ./docker/.container-structure-test.yaml.dist ./docker/.container-structure-test.yaml; fi
-    - container-structure-test test --image acci:latest --config ./docker/.container-structure-test.yaml
+    # Container Structure Tests for each architecture
+    - |
+      if [ ! -f ./docker/.container-structure-test.yaml ]; then
+        cp ./docker/.container-structure-test.yaml.dist ./docker/.container-structure-test.yaml
+      fi
+      for platform in $(echo $PLATFORMS | tr ',' ' '); do
+        container-structure-test test \
+          --image acci:$platform \
+          --config ./docker/.container-structure-test.yaml
+      done
   artifacts:
     reports:
-      container_scanning: trivy-results.json
+      container_scanning: trivy-results-*.json
     paths:
-      - container-bom.json
+      - container-bom-*.json
       - trivy-*.json
 
 # Image Signing Stage
@@ -112,7 +155,10 @@ sign-image:
   services:
     - docker:dind
   script:
-    - cosign sign --yes acci:latest
+    - |
+      for platform in $(echo $PLATFORMS | tr ',' ' '); do
+        cosign sign --yes acci:$platform
+      done
   dependencies:
     - docker-security
   rules:

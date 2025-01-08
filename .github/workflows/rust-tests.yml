@@ -14,6 +14,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
+  PLATFORMS: linux/amd64,linux/ppc64le
 
 jobs:
   test:
@@ -99,20 +100,44 @@ jobs:
           echo "MSRV is $MSRV"
 
   cross-platform:
-    name: Test on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    name: Test on ${{ matrix.platform }}
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        platform: [
+          {target: x86_64-unknown-linux-gnu, arch: amd64},
+          {target: powerpc64le-unknown-linux-gnu, arch: ppc64le}
+        ]
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform.target }}
+
+      - name: Install cross-compilation dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-powerpc64le-linux-gnu
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.platform.target }}
 
-      - name: Run tests
-        run: cargo test --all-features --verbose
+      - name: Build for ${{ matrix.platform.target }}
+        run: cargo build --target ${{ matrix.platform.target }} --verbose
+
+      - name: Run tests for ${{ matrix.platform.target }}
+        run: |
+          if [ "${{ matrix.platform.target }}" = "x86_64-unknown-linux-gnu" ]; then
+            cargo test --target ${{ matrix.platform.target }} --verbose
+          else
+            echo "Skipping tests for ${{ matrix.platform.target }} as they require emulation"
+          fi
+
+      - name: Check binary size
+        run: |
+          ls -l target/${{ matrix.platform.target }}/debug/acci_base

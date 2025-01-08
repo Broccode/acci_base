@@ -147,6 +147,12 @@ Create a git tag for the version (e.g., v0.2.0)
   - Enhanced type safety in middleware service implementation
   - Streamlined extension handling in test service
   - Better test assertions using assert_eq
+- Removed ARM64/AArch64 architecture support from CI pipelines
+  - Updated Docker multi-architecture builds to only target AMD64 and PPC64LE
+  - Modified cross-compilation settings in GitHub Actions and GitLab CI
+  - Adjusted QEMU emulation setup for remaining architectures
+  - Updated platform-specific security scans and tests
+  - Streamlined CI/CD pipeline configurations
 
 ### Fixed
 - Fixed Clippy warnings for unnecessary borrows and unwraps

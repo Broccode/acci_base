@@ -28,7 +28,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_database_connection_invalid_url() {
-        let result = DatabaseConnection::new("postgres://invalid:123@nowhere:5432/nonexistent").await;
+        let result =
+            DatabaseConnection::new("postgres://invalid:123@nowhere:5432/nonexistent").await;
         assert!(result.is_err());
 
         match result {

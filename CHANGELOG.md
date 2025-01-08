@@ -161,6 +161,15 @@ Create a git tag for the version (e.g., v0.2.0)
 
 ### Technical
 - Defined Minimum Supported Rust Version (MSRV) as 1.75 in Cargo.toml
+- Added GitLab CI/CD pipeline configuration
+  - Equivalent functionality to GitHub Actions workflows
+  - Integrated security scanning with GitLab templates
+  - Enhanced container scanning with Trivy
+  - Automated test suite with coverage reporting
+  - Cross-platform testing support
+  - SBOM generation and validation
+  - Image signing with Cosign
+  - Dependency auditing and license compliance checks
 
 ### Added
 - Comprehensive GitHub Actions test workflow

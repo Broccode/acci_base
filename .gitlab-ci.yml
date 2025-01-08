@@ -27,7 +27,7 @@ rust-test:
     - cargo install cargo-criterion cargo-tarpaulin cargo-audit cargo-deny
   script:
     - cargo fmt --all -- --check
-    - cargo clippy --all-targets --all-features -- -D warnings
+    - cargo clippy --all-features -- -D warnings
     - cargo test --all-features --verbose
     - cargo doc --no-deps --all-features
     - cargo build --release

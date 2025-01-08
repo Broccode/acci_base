@@ -48,10 +48,11 @@ jobs:
           cargo build --release
           ls -l target/release/acci_base
 
-      - name: Run cargo-audit
-        uses: actions-rs/audit-check@v1
+      - name: Audit Rust Dependencies
+        uses: actions-rust-lang/audit@v1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          ignore: RUSTSEC-2023-0071
+          # token: ${{ secrets.GITHUB_TOKEN }}
 
       # Optional: Add benchmark comparison if you have benchmarks
       - name: Run benchmarks

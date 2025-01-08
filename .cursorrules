@@ -42,7 +42,7 @@ ASYNC PROGRAMMING
 
 TESTING
 
-- Write unit tests alongside implementation code
+- Always write unit tests alongside implementation code
 - Use integration tests for external interface validation
 - Implement property-based testing for complex logic
 - Mock external services in tests using traits
@@ -113,11 +113,13 @@ DOCUMENTATION
 PROJECT MANAGEMENT
 
 - Reference ARCHITECTURE.md for all feature implementations
-<!-- - Reference Documentation.md for all API endpoints and their request/response formats -->
+- Propagate the architecture to all code
 - Ensure new code aligns with defined milestones
 - Follow the established database schema
 - Consider cost optimizations defined in metrics
 - Maintain consistency with existing components
+- Before starting a new feature, always check the architecture to see if the feature is already implemented
+- When adding/changing a dependency, always ensure that feature flags really exist for the used version of the dependency
 
 CONTAINER BEST PRACTICES
 

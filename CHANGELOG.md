@@ -116,6 +116,9 @@ Create a git tag for the version (e.g., v0.2.0)
 
 # [Unreleased]
 
+### Changed
+- Improved test assertion readability in error handling tests
+
 ### Fixed
 - Fixed Clippy warnings for unnecessary borrows and unwraps
 - Optimized Docker build to use distroless/cc for minimal runtime dependencies

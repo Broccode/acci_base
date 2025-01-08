@@ -5,7 +5,7 @@ on:
   push:
     branches: [ master ]
     paths:
-      - 'docker/Dockerfile'
+      - 'docker/Dockerfile.prod'
       - '.github/workflows/docker-security.yml'
       - 'docker/.container-structure-test.yaml'
       - 'src/**'
@@ -55,7 +55,7 @@ jobs:
               --platform $platform \
               --cache-from type=gha \
               --cache-to type=gha,mode=max \
-              --file ./docker/Dockerfile \
+              --file ./docker/Dockerfile.prod \
               --tag acci:${platform//linux\//} \
               --load \
               .

@@ -15,7 +15,7 @@ metadataTest:
       value: "0"
     - key: RUST_LOG
       value: "info"
-  exposedPorts: ["8080"]
+  exposedPorts: ["3333"]
   user: "appuser"
 
 commandTests:

@@ -135,6 +135,10 @@ Create a git tag for the version (e.g., v0.2.0)
 - Clippy rules for hardcoded string detection
 - Translation completeness checker script
 - Added walkdir dependency for translation checking
+- Multi-environment Docker setup with separate Dockerfiles for development, production, and testing
+- Development environment with hot-reloading and development tools
+- Test environment with testing tools and coverage support
+- Production environment with security scanning and SBOM generation
 
 ### Changed
 - Improved test assertion readability in error handling tests

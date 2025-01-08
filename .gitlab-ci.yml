@@ -116,7 +116,7 @@ docker-security:
           --build-arg BUILDPLATFORM=$platform \
           --build-arg TARGETPLATFORM=$platform \
           -t acci:$platform \
-          -f docker/Dockerfile .
+          -f docker/Dockerfile.prod .
       done
     
     # Generate and Verify SBOM for each architecture

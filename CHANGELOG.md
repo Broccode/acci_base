@@ -116,14 +116,41 @@ Create a git tag for the version (e.g., v0.2.0)
 
 # [Unreleased]
 
+### Added
+- Thread-safe i18n implementation using Fluent
+  - Support for English, German, Albanian, French, and Spanish
+  - Async/await compatible with tokio
+  - Language negotiation with fallback
+  - Thread-safe resource management using Arc and RwLock
+  - Type-safe language identifiers
+  - Implemented FTL files for all supported languages
+  - Common message categories: errors, navigation, user messages, tenant messages, actions, confirmations, success messages, form labels, and validation messages
+  - Language detection middleware with support for:
+    - URL query parameters (?lang=de)
+    - Accept-Language header
+    - Fallback to default language
+    - Extension trait for easy access in request handlers
+  - Concurrent memoization for improved performance
+  - System status messages in all supported languages
+
 ### Changed
 - Improved test assertion readability in error handling tests
+- Enhanced thread safety in i18n implementation using intl-memoizer
+- Enhanced health check system
+  - Added i18n support for health status messages
+  - Improved response structure with status messages
+  - Unified health and readiness check response format
+  - Integrated health routes with i18n middleware
+  - Added timestamp to health responses
 
 ### Fixed
 - Fixed Clippy warnings for unnecessary borrows and unwraps
 - Optimized Docker build to use distroless/cc for minimal runtime dependencies
 - Suppressed dead code warnings for base components that will be used in future implementations
 - Resolved dead code warnings for ErrorContext fields
+- Removed unused imports and dead code
+- Optimized middleware response handling
+- Fixed test assertions for health checks
 
 ### Technical
 - Defined Minimum Supported Rust Version (MSRV) as 1.75 in Cargo.toml

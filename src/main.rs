@@ -1,41 +1,40 @@
 use axum::Router;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tower_http::{compression::CompressionLayer, cors::CorsLayer, trace::TraceLayer};
+use tracing::info;
+
+use crate::common::i18n::I18nManager;
+use crate::common::middleware::setup_i18n;
 
 mod api;
 mod common;
 mod domain;
 mod infrastructure;
 
-use common::setup_logging;
-// use infrastructure::{DatabaseConnection, CacheConnection};
-
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     // Initialize logging
-    setup_logging();
+    common::setup_logging();
 
-    // Initialize infrastructure
-    // let _db = DatabaseConnection::new("postgres://localhost/acci_base")
-    //     .await
-    //     .expect("Failed to connect to database");
+    // Initialize i18n
+    let i18n_manager = Arc::new(I18nManager::new().await?);
 
-    // let _cache = CacheConnection::new()
-    //     .await
-    //     .expect("Failed to connect to cache");
-
-    // Create the application router
+    // Build application
     let app = Router::new()
-        .merge(api::health_routes())
+        .merge(api::health::health_routes())
+        .layer(setup_i18n(Arc::clone(&i18n_manager)))
         .layer(TraceLayer::new_for_http())
         .layer(CompressionLayer::new())
         .layer(CorsLayer::permissive()); // TODO: Configure CORS properly for production
 
     // Bind to address
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    tracing::info!("Starting server on {}", addr);
+    info!("Starting server on {}", addr);
 
-    // Start the server
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    // Start server
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    axum::serve(listener, app).await?;
+
+    Ok(())
 }

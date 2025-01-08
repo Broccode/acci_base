@@ -116,6 +116,9 @@ Create a git tag for the version (e.g., v0.2.0)
 
 # [Unreleased]
 
+### Technical
+- Defined Minimum Supported Rust Version (MSRV) as 1.75 in Cargo.toml
+
 ### Added
 - Comprehensive GitHub Actions test workflow
   - Automated test suite with unit and integration tests

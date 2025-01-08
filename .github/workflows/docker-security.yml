@@ -8,8 +8,8 @@ on:
       - 'docker/Dockerfile.prod'
       - '.github/workflows/docker-security.yml'
       - 'docker/.container-structure-test.yaml'
-      - 'src/**'
-      - 'Cargo.*'
+      - 'docker/**'
+      - 'Cargo.lock'
   pull_request:
     branches: [ master ]
   schedule:

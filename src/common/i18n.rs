@@ -49,6 +49,11 @@ impl SupportedLanguage {
     }
 }
 
+#[cfg(not(test))]
+const LOCALES_DIR: &str = "locales";
+#[cfg(test)]
+const LOCALES_DIR: &str = "test_locales";
+
 #[derive(Clone)]
 pub struct I18nManager {
     bundles: Arc<RwLock<HashMap<String, Arc<ConcurrentBundle>>>>,
@@ -142,7 +147,7 @@ impl I18nManager {
                 )
             })?]);
 
-        let path = PathBuf::from("locales")
+        let path = PathBuf::from(LOCALES_DIR)
             .join(lang.as_str())
             .join("main.ftl");
         let source = fs::read_to_string(&path).map_err(|e| {
@@ -168,58 +173,124 @@ impl I18nManager {
 
         Ok(bundle)
     }
+
+    #[cfg(test)]
+    pub async fn new_with_dir(dir: &str) -> AppResult<Self> {
+        let mut bundles = HashMap::new();
+        for lang in SupportedLanguage::iter() {
+            let bundle = {
+                let mut b =
+                    FluentBundle::new_concurrent(vec![lang.as_str().parse().map_err(|e| {
+                        (
+                            AppError::I18n(format!("Failed to parse language: {:?}", e)),
+                            Default::default(),
+                        )
+                    })?]);
+
+                let path = PathBuf::from(dir).join(lang.as_str()).join("main.ftl");
+                let source = fs::read_to_string(&path).map_err(|e| {
+                    (
+                        AppError::I18n(format!("Failed to read file: {:?}", e)),
+                        Default::default(),
+                    )
+                })?;
+
+                let resource = FluentResource::try_new(source).map_err(|(_, errors)| {
+                    (
+                        AppError::I18n(format!("Parse errors: {:?}", errors)),
+                        Default::default(),
+                    )
+                })?;
+
+                b.add_resource(resource).map_err(|errors| {
+                    (
+                        AppError::I18n(format!("Failed to add resource: {:?}", errors)),
+                        Default::default(),
+                    )
+                })?;
+
+                b
+            };
+            bundles.insert(lang.as_str().to_string(), Arc::new(bundle));
+        }
+
+        Ok(Self {
+            bundles: Arc::new(RwLock::new(bundles)),
+            default_lang: "en".to_string(),
+        })
+    }
+}
+
+#[cfg(test)]
+pub fn setup_test_translations(test_name: &str) -> AppResult<String> {
+    use crate::common::error::ErrorContext;
+    let test_dir = format!("test_locales_{}", test_name);
+    let dir_path = PathBuf::from(&test_dir).join("en");
+    fs::create_dir_all(&dir_path).map_err(|e| {
+        (
+            AppError::I18n(format!("Failed to create directory: {}", e)),
+            ErrorContext::new(),
+        )
+    })?;
+
+    let test_content = "test-message = Test message content
+health-status = System health status
+system-status-healthy = Healthy
+system-status-ready = Ready
+system-ready-message = System is ready to accept requests";
+    let test_dirs = ["en", "de", "fr", "es", "sq"];
+
+    for dir in test_dirs.iter() {
+        let dir_path = PathBuf::from(&test_dir).join(dir);
+        fs::create_dir_all(&dir_path).map_err(|e| {
+            (
+                AppError::I18n(format!("Failed to create directory: {}", e)),
+                ErrorContext::new(),
+            )
+        })?;
+
+        let file_path = dir_path.join("main.ftl");
+        fs::write(&file_path, test_content).map_err(|e| {
+            (
+                AppError::I18n(format!("Failed to write file: {}", e)),
+                ErrorContext::new(),
+            )
+        })?;
+    }
+
+    Ok(test_dir)
+}
+
+#[cfg(test)]
+pub fn cleanup_test_translations(test_dir: &str) {
+    let _ = fs::remove_dir_all(test_dir);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
 
-    fn setup_test_translations() -> AppResult<()> {
-        let test_content = "test-message = Test message content";
-        let test_dirs = ["en", "de", "fr", "es", "sq"];
-
-        for dir in test_dirs.iter() {
-            let dir_path = PathBuf::from("locales").join(dir);
-            fs::create_dir_all(&dir_path).map_err(|e| {
-                (
-                    AppError::I18n(format!("Failed to create directory: {:?}", e)),
-                    Default::default(),
-                )
-            })?;
-
-            let file_path = dir_path.join("main.ftl");
-            fs::write(&file_path, test_content).map_err(|e| {
-                (
-                    AppError::I18n(format!("Failed to write file: {:?}", e)),
-                    Default::default(),
-                )
-            })?;
-        }
-        Ok(())
-    }
-
-    fn cleanup_test_translations() {
-        let _ = fs::remove_dir_all("locales");
+    async fn setup(test_name: &str) -> AppResult<(I18nManager, String)> {
+        let test_dir = setup_test_translations(test_name)?;
+        let manager = I18nManager::new_with_dir(&test_dir).await?;
+        Ok((manager, test_dir))
     }
 
     #[tokio::test]
     async fn test_i18n_manager_creation() -> AppResult<()> {
-        setup_test_translations()?;
-        let manager = I18nManager::new().await?;
+        let (manager, test_dir) = setup("manager_creation").await?;
         let bundle = manager.get_bundle("en").await?;
         assert!(bundle.has_message("test-message"));
-        cleanup_test_translations();
+        cleanup_test_translations(&test_dir);
         Ok(())
     }
 
     #[tokio::test]
     async fn test_format_message() -> AppResult<()> {
-        setup_test_translations()?;
-        let manager = I18nManager::new().await?;
+        let (manager, test_dir) = setup("format_message").await?;
         let message = manager.format_message("en", "test-message", None).await;
         assert_eq!(message, "Test message content");
-        cleanup_test_translations();
+        cleanup_test_translations(&test_dir);
         Ok(())
     }
 }

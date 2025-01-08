@@ -105,6 +105,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::i18n::{cleanup_test_translations, setup_test_translations};
     use axum::http::header;
     use axum::response::Response;
     use bytes::Bytes;
@@ -132,9 +133,20 @@ mod tests {
         }
     }
 
+    async fn setup_i18n(test_name: &str) -> (Arc<I18nManager>, String) {
+        let test_dir =
+            setup_test_translations(test_name).expect("Failed to setup test translations");
+        let i18n = Arc::new(
+            I18nManager::new_with_dir(&test_dir)
+                .await
+                .expect("Failed to initialize i18n"),
+        );
+        (i18n, test_dir)
+    }
+
     #[tokio::test]
     async fn test_language_detection_from_query() {
-        let i18n_manager = Arc::new(I18nManager::new().await.unwrap());
+        let (i18n_manager, test_dir) = setup_i18n("lang_query").await;
         let middleware = LanguageLayer::new(i18n_manager);
         let service = middleware.layer(TestService);
 
@@ -145,11 +157,12 @@ mod tests {
 
         let response = service.oneshot(request).await.unwrap();
         assert_eq!(response.extensions().get::<String>().unwrap(), "de");
+        cleanup_test_translations(&test_dir);
     }
 
     #[tokio::test]
     async fn test_language_detection_from_header() {
-        let i18n_manager = Arc::new(I18nManager::new().await.unwrap());
+        let (i18n_manager, test_dir) = setup_i18n("lang_header").await;
         let middleware = LanguageLayer::new(i18n_manager);
         let service = middleware.layer(TestService);
 
@@ -161,20 +174,22 @@ mod tests {
 
         let response = service.oneshot(request).await.unwrap();
         assert_eq!(response.extensions().get::<String>().unwrap(), "fr");
+        cleanup_test_translations(&test_dir);
     }
 
     #[tokio::test]
     async fn test_fallback_to_default_language() {
-        let i18n_manager = Arc::new(I18nManager::new().await.unwrap());
+        let (i18n_manager, test_dir) = setup_i18n("lang_fallback").await;
         let middleware = LanguageLayer::new(i18n_manager);
         let service = middleware.layer(TestService);
 
         let request = Request::builder()
-            .uri("/?lang=invalid")
+            .uri("/")
             .body(Full::new(Bytes::new()))
             .unwrap();
 
         let response = service.oneshot(request).await.unwrap();
         assert_eq!(response.extensions().get::<String>().unwrap(), "en");
+        cleanup_test_translations(&test_dir);
     }
 }

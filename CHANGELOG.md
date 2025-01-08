@@ -162,6 +162,9 @@ Create a git tag for the version (e.g., v0.2.0)
   - Streamlined CI/CD pipeline configurations
 - Enhanced string literal handling in development workflow
 - Improved i18n validation process
+- Modified translation check script to exclude src/common/i18n.rs from verification
+- Updated hardcoded string check script to exclude i18n configuration file
+- Fixed regex patterns in hardcoded string detection to prevent invalid operator errors
 
 ### Fixed
 - Fixed Clippy warnings for unnecessary borrows and unwraps
@@ -219,6 +222,7 @@ Create a git tag for the version (e.g., v0.2.0)
   - Enhanced GitLab CI configuration
   - Improved build caching strategy
   - Optimized security scanning process
+- Prevent deletion of production locales directory during test execution by using a separate test-specific directory
 
 ### Technical
 - Defined Minimum Supported Rust Version (MSRV) as 1.75 in Cargo.toml

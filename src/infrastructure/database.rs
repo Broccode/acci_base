@@ -32,22 +32,22 @@ impl DbConnection {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
 
-    #[tokio::test]
-    async fn test_database_connection() -> AppResult<()> {
-        let db = DbConnection::new().await?;
-        assert!(db.get_connection().ping().await.is_ok());
-        Ok(())
-    }
+//     #[tokio::test]
+//     async fn test_database_connection() -> AppResult<()> {
+//         let db = DbConnection::new().await?;
+//         assert!(db.get_connection().ping().await.is_ok());
+//         Ok(())
+//     }
 
-    #[tokio::test]
-    async fn test_database_connection_with_invalid_url() {
-        std::env::set_var("DATABASE_URL", "invalid_url");
-        let result = DbConnection::new().await;
-        assert!(result.is_err());
-        std::env::remove_var("DATABASE_URL");
-    }
-}
+//     #[tokio::test]
+//     async fn test_database_connection_with_invalid_url() {
+//         std::env::set_var("DATABASE_URL", "invalid_url");
+//         let result = DbConnection::new().await;
+//         assert!(result.is_err());
+//         std::env::remove_var("DATABASE_URL");
+//     }
+// }

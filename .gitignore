@@ -7,3 +7,5 @@
 .env.dev
 .env.prod
 .env.test
+
+test_locales

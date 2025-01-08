@@ -5,6 +5,7 @@ use walkdir::WalkDir;
 
 fn main() -> std::io::Result<()> {
     let locales_dir = "locales";
+    let excluded_file = "src/common/i18n.rs";
     let mut translations: HashMap<String, HashSet<String>> = HashMap::new();
     let mut all_keys: HashSet<String> = HashSet::new();
 
@@ -12,7 +13,10 @@ fn main() -> std::io::Result<()> {
     for entry in WalkDir::new(locales_dir)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "ftl"))
+        .filter(|e| {
+            e.path().extension().map_or(false, |ext| ext == "ftl")
+                && e.path().to_str().map_or(true, |p| p != excluded_file)
+        })
     {
         let lang = entry
             .path()

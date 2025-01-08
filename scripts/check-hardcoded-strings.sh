@@ -8,34 +8,46 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'
 
-# Patterns to search for
+# Patterns to search for (using fixed strings where possible)
 PATTERNS=(
-    'String::from("(?!test)'  # String::from with literal
-    'to_string()"'           # Literal followed by to_string()
-    '".*"\.to_string()'      # String literal with to_string()
+    'String::from("'         # String::from with literal
+    '.to_string()'          # to_string() calls
 )
 
 # Excluded patterns (allowed hardcoded strings)
 EXCLUDES=(
-    'derive'
-    'test'
-    'cfg'
-    'doc'
-    'allow'
-    'deny'
+    '#\[derive'
+    '#\[test'
+    '#\[cfg'
+    '#\[doc'
+    '#\[allow'
+    '#\[deny'
 )
 
-EXCLUDE_PATTERN=$(IFS=\|; echo "${EXCLUDES[*]}")
+# Excluded files
+EXCLUDED_FILES=(
+    'src/common/i18n.rs'
+)
+
+# Build exclude pattern for grep
+EXCLUDE_PATTERN=$(printf "|%s" "${EXCLUDES[@]}")
+EXCLUDE_PATTERN=${EXCLUDE_PATTERN:1}
 
 # Initialize error counter
 ERRORS=0
 
 for file in $(git diff --cached --name-only --diff-filter=ACMR | grep "\.rs$"); do
+    # Skip excluded files
+    if [[ " ${EXCLUDED_FILES[@]} " =~ " ${file} " ]]; then
+        continue
+    fi
+    
     for pattern in "${PATTERNS[@]}"; do
         # Search for pattern but exclude allowed cases
+        # Using -F for fixed strings where possible to avoid regex issues
         FINDINGS=$(git diff --cached --unified=0 "$file" | \
                   grep -E "^\+" | \
-                  grep -E "$pattern" | \
+                  grep -F "$pattern" | \
                   grep -Ev "$EXCLUDE_PATTERN" || true)
         
         if [ ! -z "$FINDINGS" ]; then

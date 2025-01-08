@@ -106,23 +106,33 @@ async fn readiness_check(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::i18n::{cleanup_test_translations, setup_test_translations};
     use axum::{
         body::Body,
         http::{header, Request, StatusCode},
     };
     use tower::ServiceExt;
 
-    async fn setup_test_app() -> Router {
-        let i18n = Arc::new(I18nManager::new().await.expect("Failed to initialize i18n"));
-        Router::new()
-            .route("/health", get(health_check))
-            .route("/ready", get(readiness_check))
-            .layer(Extension(i18n))
+    async fn setup_test_app() -> (Router, String) {
+        let test_dir =
+            setup_test_translations("health_test").expect("Failed to setup test translations");
+        let i18n = Arc::new(
+            I18nManager::new_with_dir(&test_dir)
+                .await
+                .expect("Failed to initialize i18n"),
+        );
+        (
+            Router::new()
+                .route("/health", get(health_check))
+                .route("/ready", get(readiness_check))
+                .layer(Extension(i18n)),
+            test_dir,
+        )
     }
 
     #[tokio::test]
     async fn test_health_check() {
-        let app = setup_test_app().await;
+        let (app, test_dir) = setup_test_app().await;
 
         let request = Request::builder()
             .uri("/health?lang=en")
@@ -144,11 +154,13 @@ mod tests {
 
         assert_eq!(health_response.status, "Healthy");
         assert_eq!(health_response.version, env!("CARGO_PKG_VERSION"));
+
+        cleanup_test_translations(&test_dir);
     }
 
     #[tokio::test]
     async fn test_readiness_check() {
-        let app = setup_test_app().await;
+        let (app, test_dir) = setup_test_app().await;
 
         let request = Request::builder()
             .uri("/ready?lang=en")
@@ -170,5 +182,7 @@ mod tests {
 
         assert_eq!(health_response.status, "Ready");
         assert_eq!(health_response.version, env!("CARGO_PKG_VERSION"));
+
+        cleanup_test_translations(&test_dir);
     }
 }

@@ -174,6 +174,9 @@ Create a git tag for the version (e.g., v0.2.0)
   - Updated image tagging scheme for better architecture identification
   - Adjusted security scanning and testing for platform-specific images
   - Fixed manifest list handling in GitHub Actions
+- Removed redundant doc test step from CI configurations
+  - Documentation tests are already included in the main test suite
+  - Simplified test steps in GitHub Actions and GitLab CI
 
 ### Technical
 - Defined Minimum Supported Rust Version (MSRV) as 1.75 in Cargo.toml

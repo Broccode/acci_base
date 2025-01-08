@@ -65,7 +65,7 @@ mod tests {
         let client = reqwest::Client::new();
 
         let response = client
-            .get(&format!("{}/health", address))
+            .get(format!("{}/health", address))
             .send()
             .await
             .expect("Failed to execute request.");
@@ -83,7 +83,7 @@ mod tests {
         let client = reqwest::Client::new();
 
         let response = client
-            .get(&format!("{}/ready", address))
+            .get(format!("{}/ready", address))
             .send()
             .await
             .expect("Failed to execute request.");

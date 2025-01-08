@@ -165,6 +165,10 @@ Create a git tag for the version (e.g., v0.2.0)
 - Improved type safety in language middleware
 - Streamlined error propagation in service implementations
 - Fixed container structure test configuration to use correct schema for environment variables
+- Added required dependencies for PPC64LE cross-compilation
+  - Installed bindgen-cli and AWS-LC system dependencies
+  - Set up proper environment variables for cross-compilation
+  - Added proper sysroot configuration for PPC64LE builds
 
 ### Technical
 - Defined Minimum Supported Rust Version (MSRV) as 1.75 in Cargo.toml

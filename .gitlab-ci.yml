@@ -61,8 +61,15 @@ cross-platform-test:
       - TARGET: ["x86_64-unknown-linux-gnu", "powerpc64le-unknown-linux-gnu"]
   before_script:
     - apt-get update
-    - apt-get install -y gcc-powerpc64le-linux-gnu
+    - apt-get install -y gcc-powerpc64le-linux-gnu cmake clang llvm-dev libclang-dev
     - rustup target add $TARGET
+    - cargo install --force --locked bindgen-cli
+    # Set environment variables for aws-lc-sys
+    - |
+      if [ "$TARGET" = "powerpc64le-unknown-linux-gnu" ]; then
+        export AWS_LC_SYS_EXTERNAL_BINDGEN=1
+        export BINDGEN_EXTRA_CLANG_ARGS="--sysroot=/usr/powerpc64le-linux-gnu"
+      fi
   script:
     - cargo build --target $TARGET --verbose
     - |

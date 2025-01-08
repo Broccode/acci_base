@@ -142,6 +142,11 @@ Create a git tag for the version (e.g., v0.2.0)
   - Unified health and readiness check response format
   - Integrated health routes with i18n middleware
   - Added timestamp to health responses
+- Optimized language middleware implementation
+  - Improved error handling in language negotiation
+  - Enhanced type safety in middleware service implementation
+  - Streamlined extension handling in test service
+  - Better test assertions using assert_eq
 
 ### Fixed
 - Fixed Clippy warnings for unnecessary borrows and unwraps
@@ -151,6 +156,8 @@ Create a git tag for the version (e.g., v0.2.0)
 - Removed unused imports and dead code
 - Optimized middleware response handling
 - Fixed test assertions for health checks
+- Improved type safety in language middleware
+- Streamlined error propagation in service implementations
 
 ### Technical
 - Defined Minimum Supported Rust Version (MSRV) as 1.75 in Cargo.toml
@@ -181,3 +188,10 @@ Create a git tag for the version (e.g., v0.2.0)
   - Infrastructure tests for database and cache connections
   - Logging system tests with context tracking
   - Total test coverage: 24 unit tests across all components
+
+### Security
+- Enhanced Docker security pipeline
+  - Added explicit permissions configuration for GitHub Actions
+  - Improved SARIF report handling for security scans
+  - Added write permissions for security events and pull requests
+  - Enhanced access control for GitHub token usage

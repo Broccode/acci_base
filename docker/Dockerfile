@@ -12,8 +12,8 @@ RUN adduser --no-create-home --disabled-password --gecos "" appuser
 WORKDIR /app
 COPY . .
 
-# Build with security flags
-RUN RUSTFLAGS="-C target-feature=+crt-static" cargo build --release
+# Build with optimizations
+RUN cargo build --release
 
 # Generate SBOM
 RUN cargo install cargo-cyclonedx
@@ -25,9 +25,14 @@ COPY --from=builder /app /app
 RUN trivy fs --severity HIGH,CRITICAL --exit-code 1 /app
 
 # Final stage
-FROM gcr.io/distroless/static:nonroot
+FROM debian:bookworm-slim
 
-# Copy binary and SBOM
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy binary, SBOM and user info
 COPY --from=builder /app/target/release/acci_base /app/acci_base
 COPY --from=builder /app/bom.json /app/bom.json
 COPY --from=builder /etc/passwd /etc/passwd

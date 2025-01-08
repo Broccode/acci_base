@@ -117,6 +117,7 @@ Create a git tag for the version (e.g., v0.2.0)
 # [Unreleased]
 
 ### Fixed
+- Resolved Docker build issues with proc-macro crates by removing static linking
 - Suppressed dead code warnings for base components that will be used in future implementations
 - Resolved dead code warnings for ErrorContext fields
 

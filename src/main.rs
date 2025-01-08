@@ -29,7 +29,7 @@ async fn main() -> anyhow::Result<()> {
         .layer(CorsLayer::permissive()); // TODO: Configure CORS properly for production
 
     // Bind to address
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3333));
     info!("Starting server on {}", addr);
 
     // Start server

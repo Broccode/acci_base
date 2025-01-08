@@ -18,7 +18,7 @@ env:
 jobs:
   test:
     name: Test Suite
-    runs-on: ubuntu-noble-20241118.1
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -80,7 +80,7 @@ jobs:
 
   msrv:
     name: Check MSRV
-    runs-on: ubuntu-noble-20241118.1
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -103,7 +103,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-noble-20241118.1, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
       - uses: actions/checkout@v4

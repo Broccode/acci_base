@@ -23,7 +23,6 @@ impl DatabaseConnection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sea_orm::DbErr;
     use std::env;
 
     #[tokio::test]

@@ -1,4 +1,3 @@
-use tracing::Subscriber;
 use tracing_subscriber::{
     fmt::{self, format::FmtSpan},
     layer::SubscriberExt,

@@ -41,7 +41,6 @@ async fn readiness_check() -> Json<HealthResponse> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::net::SocketAddr;
     use tokio::net::TcpListener;
 
     async fn spawn_app() -> String {

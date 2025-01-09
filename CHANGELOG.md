@@ -139,6 +139,7 @@ Create a git tag for the version (e.g., v0.2.0)
 - Development environment with hot-reloading and development tools
 - Test environment with testing tools and coverage support
 - Production environment with security scanning and SBOM generation
+- Added Codecov integration for code coverage reporting
 
 ### Changed
 - Improved test assertion readability in error handling tests

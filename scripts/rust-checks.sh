@@ -13,15 +13,19 @@ echo "→ Checking for hardcoded strings..."
 
 # Run cargo fmt
 echo "→ Running cargo fmt..."
-cargo fmt --all
+cargo fmt --all --verbose
 
 # Run cargo check
 echo "→ Running cargo check..."
-cargo check
+cargo check --all-features
+
+# Run cargo test
+echo "→ Running cargo test..."
+cargo test --all-features
 
 # Run cargo clippy
 echo "→ Running cargo clippy..."
-cargo clippy
+cargo clippy --all-features -- -D warnings
 
 # If we got here, all checks passed
 echo "✓ All pre-commit checks passed!"

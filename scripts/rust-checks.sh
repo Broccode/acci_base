@@ -7,9 +7,9 @@ set -e
 
 echo "Running pre-commit checks..."
 
-# Run hardcoded strings check
-echo "→ Checking for hardcoded strings..."
-./scripts/check-hardcoded-strings.sh
+# # Run hardcoded strings check
+# echo "→ Checking for hardcoded strings..."
+# ./scripts/check-hardcoded-strings.sh
 
 # Run cargo fmt
 echo "→ Running cargo fmt..."

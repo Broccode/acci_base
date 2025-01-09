@@ -8,10 +8,9 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'
 
-# Patterns to search for (using fixed strings where possible)
+# Patterns to search for string literals
 PATTERNS=(
-    'String::from("'         # String::from with literal
-    '.to_string()'          # to_string() calls
+    '"[^"]*"'               # Match any string literal
 )
 
 # Excluded patterns (allowed hardcoded strings)
@@ -22,11 +21,18 @@ EXCLUDES=(
     '#\[doc'
     '#\[allow'
     '#\[deny'
+    'r#"'                   # Raw string literals
+    'include_str!'          # Include string macro
+    'env!'                  # Environment variable macro
+    'concat!'               # Concatenation macro
+    'format!'               # Format macro
 )
 
 # Excluded files
 EXCLUDED_FILES=(
     'src/common/i18n.rs'
+    'src/tests/'
+    'benches/'
 )
 
 # Build exclude pattern for grep
@@ -38,24 +44,32 @@ ERRORS=0
 
 for file in $(git diff --cached --name-only --diff-filter=ACMR | grep "\.rs$"); do
     # Skip excluded files
-    if [[ " ${EXCLUDED_FILES[@]} " =~ " ${file} " ]]; then
-        continue
-    fi
-    
-    for pattern in "${PATTERNS[@]}"; do
-        # Search for pattern but exclude allowed cases
-        # Using -F for fixed strings where possible to avoid regex issues
-        FINDINGS=$(git diff --cached --unified=0 "$file" | \
-                  grep -E "^\+" | \
-                  grep -F "$pattern" | \
-                  grep -Ev "$EXCLUDE_PATTERN" || true)
-        
-        if [ ! -z "$FINDINGS" ]; then
-            echo -e "${RED}Found potential hardcoded strings in $file:${NC}"
-            echo "$FINDINGS"
-            ERRORS=$((ERRORS + 1))
+    for excluded in "${EXCLUDED_FILES[@]}"; do
+        if [[ "$file" == *"$excluded"* ]]; then
+            continue 2
         fi
     done
+    
+    # First, get the added lines
+    ADDED_LINES=$(git diff --cached --unified=0 "$file" | grep -E "^\+" || true)
+    
+    if [ ! -z "$ADDED_LINES" ]; then
+        for pattern in "${PATTERNS[@]}"; do
+            # Search for string literals in added lines
+            FINDINGS=$(echo "$ADDED_LINES" | grep -E "$pattern" || true)
+            
+            if [ ! -z "$FINDINGS" ]; then
+                # Filter out excluded patterns
+                FILTERED_FINDINGS=$(echo "$FINDINGS" | grep -Ev "$EXCLUDE_PATTERN" || true)
+                
+                if [ ! -z "$FILTERED_FINDINGS" ]; then
+                    echo -e "${RED}Found potential hardcoded strings in $file:${NC}"
+                    echo "$FILTERED_FINDINGS"
+                    ERRORS=$((ERRORS + 1))
+                fi
+            fi
+        done
+    fi
 done
 
 if [ $ERRORS -gt 0 ]; then

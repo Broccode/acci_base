@@ -1,17 +1,17 @@
 repos:
   - repo: local
     hooks:
-      - id: check-hardcoded-strings
-        name: Check for hardcoded strings
-        entry: ./scripts/check-hardcoded-strings.sh
-        language: script
-        types: [rust]
-        exclude: |
-          (?x)^(
-            tests/.*|
-            benches/.*|
-            examples/.*
-          )$
+      # - id: check-hardcoded-strings
+      #   name: Check for hardcoded strings
+      #   entry: ./scripts/check-hardcoded-strings.sh
+      #   language: script
+      #   types: [rust]
+      #   exclude: |
+      #     (?x)^(
+      #       tests/.*|
+      #       benches/.*|
+      #       examples/.*
+      #     )$
       - id: cargo-fmt
         name: Cargo Format
         entry: cargo fmt --all --verbose

@@ -8,9 +8,11 @@ use axum::http::Request;
 use serde::Deserialize;
 use tower::{Layer, Service};
 
-use crate::common::i18n::{I18nManager, SupportedLanguage};
+use crate::common::{
+    config,
+    i18n::{I18nManager, SupportedLanguage},
+};
 
-const DEFAULT_LANGUAGE: &str = "en";
 const ACCEPT_LANGUAGE_HEADER: &str = "accept-language";
 
 #[derive(Debug, Clone)]
@@ -77,18 +79,18 @@ where
                 .get(ACCEPT_LANGUAGE_HEADER)
                 .and_then(|h| h.to_str().ok())
                 .and_then(|h| h.split(',').next())
-                .unwrap_or(DEFAULT_LANGUAGE);
+                .unwrap_or(config::get_default_language());
 
             // Determine the language to use
             let language = query
                 .or_else(|| Some(accept_language.to_string()))
-                .unwrap_or_else(|| DEFAULT_LANGUAGE.to_string());
+                .unwrap_or_else(|| config::get_default_language().to_string());
 
             // Validate the language
             let valid_language = if SupportedLanguage::iter().any(|l| l.as_str() == language) {
                 language
             } else {
-                DEFAULT_LANGUAGE.to_string()
+                config::get_default_language().to_string()
             };
 
             // Add language to request extensions

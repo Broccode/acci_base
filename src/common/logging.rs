@@ -1,4 +1,4 @@
-use crate::common::i18n::I18nManager;
+use crate::common::{config, i18n::I18nManager};
 use axum::http::HeaderMap;
 use tracing_subscriber::{
     fmt::{self, format::FmtSpan},
@@ -10,7 +10,8 @@ use uuid::Uuid;
 
 #[allow(clippy::disallowed_methods)]
 pub fn init() -> Result<(), Box<dyn std::error::Error>> {
-    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+    let env_filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new(config::get_log_level()));
 
     let formatting_layer = fmt::layer()
         .with_target(false)

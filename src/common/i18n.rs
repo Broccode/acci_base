@@ -1,5 +1,8 @@
 use {
-    crate::common::error::{AppError, AppResult},
+    crate::common::{
+        config,
+        error::{AppError, AppResult},
+    },
     fluent::{FluentArgs, FluentResource},
     fluent_bundle::bundle::FluentBundle,
     intl_memoizer::concurrent::IntlLangMemoizer,
@@ -103,7 +106,7 @@ impl I18nManager {
 
         Ok(Self {
             bundles: Arc::new(RwLock::new(bundles)),
-            default_lang: "en".to_string(),
+            default_lang: config::get_default_language().to_string(),
         })
     }
 

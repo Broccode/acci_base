@@ -3,8 +3,8 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::{compression::CompressionLayer, cors::CorsLayer, trace::TraceLayer};
 
-use crate::common::i18n::I18nManager;
 use crate::common::middleware::setup_i18n;
+use crate::common::{config, i18n::I18nManager};
 
 mod api;
 mod common;
@@ -40,7 +40,7 @@ async fn main() -> anyhow::Result<()> {
         .layer(CorsLayer::permissive()); // TODO: Configure CORS properly for production
 
     // Bind to address
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3333));
+    let addr = SocketAddr::from(([127, 0, 0, 1], config::get_backend_port()));
     let server_msg = format!("Server running at http://{}:{}", addr.ip(), addr.port());
     tracing::info!("{}", server_msg);
 

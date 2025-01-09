@@ -4,6 +4,8 @@
 
 ---
 
+[![Rust Tests](https://github.com/Broccode/acci_base/actions/workflows/rust-tests.yml/badge.svg)](https://github.com/Broccode/acci_base/actions/workflows/rust-tests.yml)
+
 ## English
 
 ### Overview
@@ -111,6 +113,3 @@ cargo test
 
 ## License
 Apache 2.0 License - see [LICENSE](LICENSE) for details
-
-## Contributing
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests. 

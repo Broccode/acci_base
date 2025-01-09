@@ -20,6 +20,7 @@ dependencies = [
  "argon2",
  "async-graphql",
  "async-graphql-axum",
+ "async-trait",
  "axum 0.8.1",
  "bytes",
  "chrono",

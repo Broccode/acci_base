@@ -165,6 +165,11 @@ Create a git tag for the version (e.g., v0.2.0)
 - Modified translation check script to exclude src/common/i18n.rs from verification
 - Updated hardcoded string check script to exclude i18n configuration file
 - Fixed regex patterns in hardcoded string detection to prevent invalid operator errors
+- Improved i18n test infrastructure
+  - Removed file system operations from tests
+  - Introduced in-memory test resource provider
+  - Enhanced test isolation and reliability
+  - Simplified test setup and teardown
 
 ### Fixed
 - Fixed Clippy warnings for unnecessary borrows and unwraps

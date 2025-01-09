@@ -105,7 +105,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::i18n::{cleanup_test_translations, setup_test_translations};
+    use crate::common::i18n::TestResourceProvider;
     use axum::http::header;
     use axum::response::Response;
     use bytes::Bytes;
@@ -126,27 +126,23 @@ mod tests {
         }
 
         fn call(&mut self, request: Request<B>) -> Self::Future {
-            // Create a response that includes the extensions from the request
             let mut response = Response::new(Full::new(Bytes::new()));
             response.extensions_mut().clone_from(request.extensions());
             Box::pin(async move { Ok(response) })
         }
     }
 
-    async fn setup_i18n(test_name: &str) -> (Arc<I18nManager>, String) {
-        let test_dir =
-            setup_test_translations(test_name).expect("Failed to setup test translations");
-        let i18n = Arc::new(
-            I18nManager::new_with_dir(&test_dir)
+    async fn setup_i18n() -> Arc<I18nManager> {
+        Arc::new(
+            I18nManager::new_with_provider(TestResourceProvider::new())
                 .await
                 .expect("Failed to initialize i18n"),
-        );
-        (i18n, test_dir)
+        )
     }
 
     #[tokio::test]
     async fn test_language_detection_from_query() {
-        let (i18n_manager, test_dir) = setup_i18n("lang_query").await;
+        let i18n_manager = setup_i18n().await;
         let middleware = LanguageLayer::new(i18n_manager);
         let service = middleware.layer(TestService);
 
@@ -157,12 +153,11 @@ mod tests {
 
         let response = service.oneshot(request).await.unwrap();
         assert_eq!(response.extensions().get::<String>().unwrap(), "de");
-        cleanup_test_translations(&test_dir);
     }
 
     #[tokio::test]
     async fn test_language_detection_from_header() {
-        let (i18n_manager, test_dir) = setup_i18n("lang_header").await;
+        let i18n_manager = setup_i18n().await;
         let middleware = LanguageLayer::new(i18n_manager);
         let service = middleware.layer(TestService);
 
@@ -174,12 +169,11 @@ mod tests {
 
         let response = service.oneshot(request).await.unwrap();
         assert_eq!(response.extensions().get::<String>().unwrap(), "fr");
-        cleanup_test_translations(&test_dir);
     }
 
     #[tokio::test]
     async fn test_fallback_to_default_language() {
-        let (i18n_manager, test_dir) = setup_i18n("lang_fallback").await;
+        let i18n_manager = setup_i18n().await;
         let middleware = LanguageLayer::new(i18n_manager);
         let service = middleware.layer(TestService);
 
@@ -190,6 +184,5 @@ mod tests {
 
         let response = service.oneshot(request).await.unwrap();
         assert_eq!(response.extensions().get::<String>().unwrap(), "en");
-        cleanup_test_translations(&test_dir);
     }
 }

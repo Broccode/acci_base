@@ -12,7 +12,7 @@ pub struct Tenant {
     pub settings: TenantSettings,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TenantSettings {
     pub max_users: i32,
     pub storage_limit: i64,  // in bytes
@@ -20,7 +20,7 @@ pub struct TenantSettings {
     pub features: TenantFeatures,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TenantFeatures {
     pub advanced_security: bool,
     pub custom_branding: bool,
@@ -66,6 +66,19 @@ impl Tenant {
         }
         Ok(())
     }
+
+    pub fn validate_active(&self) -> Result<(), AppError> {
+        if !self.is_active {
+            return Err(AppError::Tenant("Tenant is not active".into()));
+        }
+        Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+pub trait TenantService: Send + Sync + 'static {
+    async fn find_by_id(&self, id: &str) -> Result<Tenant, AppError>;
+    async fn find_by_domain(&self, domain: &str) -> Result<Tenant, AppError>;
 }
 
 #[cfg(test)]

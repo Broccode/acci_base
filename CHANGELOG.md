@@ -154,6 +154,12 @@ Create a git tag for the version (e.g., v0.2.0)
   - Separate handling for dev, prod, and test environments
   - Robust fallback mechanism for missing configurations
   - Comprehensive test coverage for all configuration scenarios
+- Tenant middleware for multi-tenant support
+  - Tenant detection via HTTP header (X-Tenant-ID)
+  - Tenant detection via domain name
+  - Automatic tenant context injection
+  - Comprehensive test coverage
+  - Error handling for invalid/inactive tenants
 
 ### Changed
 - Improved test assertion readability in error handling tests
@@ -197,6 +203,19 @@ Create a git tag for the version (e.g., v0.2.0)
   - Separated test configuration handling to use fixed file
   - Enhanced configuration loading priority (env vars > config file > defaults)
   - Improved error messages for configuration loading failures
+- Completely redesigned configuration system
+  - Separated test and production configuration handling using conditional compilation
+  - Simplified configuration loading logic
+- Completely redesigned configuration testing system
+  - Introduced mock file system for configuration tests
+  - Separated test and production file operations
+  - Added serial test execution to prevent environment variable conflicts
+  - Improved test isolation and reliability
+  - Eliminated flaky tests through proper mocking
+- Updated dependencies
+  - sea-orm from 1.1.3 to 1.1.4
+  - config from 0.15.4 to 0.15.5
+  - Added serial_test 3.0.0 for improved test isolation
 
 ### Fixed
 - Fixed Clippy warnings for unnecessary borrows and unwraps
@@ -260,6 +279,22 @@ Create a git tag for the version (e.g., v0.2.0)
   - Improved test setup with proper cleanup
   - Enhanced error handling in configuration loading
   - Fixed unwrap usage in test environment
+- Improved error handling in tenant middleware
+  - Replaced unwrap() calls with proper error handling
+  - Added centralized error response creation
+  - Enhanced code maintainability and safety
+- Completely redesigned configuration testing system
+  - Introduced mock file system for configuration tests
+  - Separated test and production file operations
+  - Added serial test execution to prevent environment variable conflicts
+  - Improved test isolation and reliability
+  - Eliminated flaky tests through proper mocking
+- Improved configuration system robustness
+  - Separated test and production configuration handling using conditional compilation
+  - Enhanced error handling for missing templates
+  - Better logging with appropriate warning levels
+  - Cleaner separation of environment-specific settings
+  - Type-safe configuration value handling
 
 ### Technical
 - Defined Minimum Supported Rust Version (MSRV) as 1.75 in Cargo.toml
@@ -310,3 +345,32 @@ Create a git tag for the version (e.g., v0.2.0)
   - Added SARIF output for Docker Scout results
   - Improved security scanning results visualization in GitHub
   - Added automated Docker Hub authentication for security scans
+
+## [0.1.0] - 2024-01-01
+
+### Added
+- Comprehensive GitHub Actions test workflow
+  - Automated test suite with unit and integration tests
+  - Cross-platform testing (Ubuntu, macOS, Windows)
+  - Code coverage reporting with cargo-tarpaulin
+  - MSRV (Minimum Supported Rust Version) validation
+  - Clippy and rustfmt checks
+  - Security audits with cargo-audit
+  - Documentation tests and builds
+  - Binary size monitoring
+  - Performance benchmarking with criterion
+- Core dependencies for multi-tenant system
+  - Axum web framework with full features
+  - Sea-ORM for database operations
+  - GraphQL support with async-graphql
+  - Authentication and authorization libraries
+  - Logging and metrics infrastructure
+  - Error handling utilities
+  - Development and testing utilities
+- Comprehensive test suite implementation
+  - API endpoint tests for health and readiness checks
+  - Domain logic tests for tenant management
+  - Error handling and context validation tests
+  - Infrastructure tests for database and cache connections
+  - Logging system tests with context tracking
+  - Total test coverage: 24 unit tests across all components

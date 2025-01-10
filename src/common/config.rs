@@ -4,6 +4,46 @@ use serde::Deserialize;
 use std::{env, fs, path::Path};
 use tracing::Level;
 
+#[cfg(test)]
+use std::collections::HashMap;
+#[cfg(test)]
+use std::sync::Mutex;
+
+// Mock file system for testing
+#[cfg(test)]
+#[derive(Default)]
+struct MockFs {
+    files: HashMap<String, String>,
+}
+
+#[cfg(test)]
+impl MockFs {
+    fn new() -> Self {
+        Self {
+            files: HashMap::new(),
+        }
+    }
+
+    fn write(&mut self, path: &str, content: &str) {
+        self.files.insert(path.to_string(), content.to_string());
+    }
+
+    fn read(&self, path: &str) -> Option<String> {
+        self.files.get(path).cloned()
+    }
+
+    fn exists(&self, path: &str) -> bool {
+        self.files.contains_key(path)
+    }
+
+    fn clear(&mut self) {
+        self.files.clear();
+    }
+}
+
+#[cfg(test)]
+static MOCK_FS: Lazy<Mutex<MockFs>> = Lazy::new(|| Mutex::new(MockFs::new()));
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct ServerSettings {
     pub backend_port: u16,
@@ -65,17 +105,13 @@ impl Settings {
 
     #[allow(clippy::disallowed_methods)]
     fn ensure_config_file(run_mode: &str) -> Option<String> {
-        if run_mode == "test" {
-            return Some("config/config.test.toml".to_string());
-        }
-
         let config_file = format!("config/config.{}.toml", run_mode);
         let template_file = format!("config/config.{}.toml.template", run_mode);
 
-        if !Path::new(&config_file).exists() {
-            match fs::read_to_string(&template_file) {
-                Ok(content) => {
-                    if let Err(e) = fs::write(&config_file, content) {
+        if !Settings::file_exists(&config_file) {
+            match Settings::read_file(&template_file) {
+                Some(content) => {
+                    if let Err(e) = Settings::write_file(&config_file, &content) {
                         tracing::event!(
                             Level::WARN,
                             "Failed to create {} from template: {}",
@@ -86,13 +122,8 @@ impl Settings {
                     }
                     tracing::event!(Level::INFO, "Created {} from template", config_file);
                 }
-                Err(e) => {
-                    tracing::event!(
-                        Level::WARN,
-                        "Failed to read template {}: {}",
-                        template_file,
-                        e
-                    );
+                None => {
+                    tracing::event!(Level::WARN, "Failed to read template {}", template_file,);
                     return None;
                 }
             }
@@ -108,25 +139,7 @@ impl Settings {
 
         let mut builder = Config::builder();
 
-        // First try to load the config file
-        if let Some(config_file) = Settings::ensure_config_file(&run_mode) {
-            builder = builder.add_source(File::with_name(&config_file).required(false));
-        } else {
-            tracing::event!(
-                Level::WARN,
-                "Config file not found for {} environment, will use defaults for missing values",
-                run_mode
-            );
-        }
-
-        // Then add environment variables
-        builder = builder.add_source(
-            Environment::with_prefix("APP")
-                .separator("__")
-                .try_parsing(true),
-        );
-
-        // Finally add defaults for any missing values
+        // First set defaults (lowest priority)
         builder = builder
             .set_default("server.backend_port", default_settings.server.backend_port)?
             .set_default(
@@ -135,7 +148,39 @@ impl Settings {
             )?
             .set_default("logging.level", default_settings.logging.level.as_str())?;
 
+        // Then load environment-specific config file (middle priority)
+        if let Some(config_file) = Settings::ensure_config_file(&run_mode) {
+            if Settings::file_exists(&config_file) {
+                builder = builder.add_source(File::with_name(&config_file).required(false));
+            }
+        }
+
+        // Finally add environment variables (highest priority)
+        builder = builder.add_source(
+            Environment::with_prefix("APP")
+                .separator("__")
+                .try_parsing(true),
+        );
+
         builder.build()?.try_deserialize()
+    }
+
+    #[cfg(not(test))]
+    fn file_exists(path: &str) -> bool {
+        Path::new(path).exists()
+    }
+
+    #[cfg(not(test))]
+    fn read_file(path: &str) -> Option<String> {
+        fs::read_to_string(path).ok()
+    }
+
+    #[cfg(not(test))]
+    fn write_file(path: &str, content: &str) -> Result<(), std::io::Error> {
+        if let Some(parent) = Path::new(path).parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(path, content)
     }
 }
 
@@ -164,22 +209,48 @@ pub fn get_log_level() -> &'static str {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::env;
-    use std::fs;
+impl Settings {
+    fn with_mock_fs() -> &'static Mutex<MockFs> {
+        &MOCK_FS
+    }
 
-    fn cleanup_test_files() {
-        let test_files = [
-            "config/config.test_mode.toml",
-            "config/config.cleanup_test.toml",
-        ];
-        for file in test_files.iter() {
-            let _ = fs::remove_file(file);
+    fn read_file(path: &str) -> Option<String> {
+        if cfg!(test) {
+            Settings::with_mock_fs().lock().unwrap().read(path)
+        } else {
+            fs::read_to_string(path).ok()
         }
     }
 
+    fn write_file(path: &str, content: &str) -> Result<(), std::io::Error> {
+        if cfg!(test) {
+            Settings::with_mock_fs()
+                .lock()
+                .unwrap()
+                .write(path, content);
+            Ok(())
+        } else {
+            fs::write(path, content)
+        }
+    }
+
+    fn file_exists(path: &str) -> bool {
+        if cfg!(test) {
+            Settings::with_mock_fs().lock().unwrap().exists(path)
+        } else {
+            Path::new(path).exists()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serial_test::serial;
+
     fn setup() {
+        let mock_fs = Settings::with_mock_fs();
+        mock_fs.lock().unwrap().clear();
         env::remove_var("APP__SERVER__BACKEND_PORT");
         env::remove_var("APP__LOGGING__LEVEL");
         env::remove_var("APP__SERVER__DEFAULT_LANGUAGE");
@@ -187,8 +258,10 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_default_settings() {
         setup();
+
         let dev_settings = Settings::get_default_settings("dev");
         assert_eq!(dev_settings.server.backend_port, 3333);
         assert_eq!(dev_settings.server.default_language, "en");
@@ -207,18 +280,32 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_ensure_config_file_test_mode() {
         setup();
+
+        // Setup mock test config
+        Settings::with_mock_fs().lock().unwrap().write(
+            "config/config.test.toml",
+            r#"[server]
+backend_port = 3333
+default_language = "en"
+
+[logging]
+level = "debug"
+"#,
+        );
+
         let result = Settings::ensure_config_file("test");
         assert_eq!(result, Some("config/config.test.toml".to_string()));
     }
 
     #[test]
+    #[serial]
     fn test_ensure_config_file_creates_from_template() {
         setup();
-        cleanup_test_files();
 
-        // Create a temporary template file
+        // Setup mock template
         let template_content = r#"[server]
 backend_port = 123
 default_language = "en"
@@ -226,52 +313,74 @@ default_language = "en"
 [logging]
 level = "debug"
 "#;
-        #[allow(clippy::unwrap_used)]
-        fs::create_dir_all("config").unwrap();
-        #[allow(clippy::unwrap_used)]
-        fs::write("config/config.test_mode.toml.template", template_content).unwrap();
+        Settings::with_mock_fs()
+            .lock()
+            .unwrap()
+            .write("config/config.test_mode.toml.template", template_content);
 
         let result = Settings::ensure_config_file("test_mode");
         assert!(result.is_some());
 
-        // Verify file was created and contains template content
-        #[allow(clippy::unwrap_used)]
-        let created_content = fs::read_to_string("config/config.test_mode.toml").unwrap();
+        // Verify file was created with template content
+        let created_content = Settings::with_mock_fs()
+            .lock()
+            .unwrap()
+            .read("config/config.test_mode.toml")
+            .unwrap();
         assert_eq!(created_content, template_content);
-
-        // Cleanup
-        #[allow(clippy::unwrap_used)]
-        fs::remove_file("config/config.test_mode.toml.template").unwrap();
-        cleanup_test_files();
     }
 
     #[test]
+    #[serial]
     fn test_ensure_config_file_missing_template() {
         setup();
-        cleanup_test_files();
-
         let result = Settings::ensure_config_file("missing_template");
         assert!(result.is_none());
     }
 
     #[test]
-    fn test_settings_new() {
+    #[serial]
+    fn test_settings_new_production() {
         setup();
 
-        // Test production settings
+        // Setup mock production config
+        Settings::with_mock_fs().lock().unwrap().write(
+            "config/config.prod.toml",
+            r#"[server]
+backend_port = 8080
+default_language = "en"
+
+[logging]
+level = "info"
+"#,
+        );
+
         env::set_var("RUN_MODE", "prod");
-        #[allow(clippy::unwrap_used)]
         let prod_settings = Settings::new().unwrap();
         assert_eq!(prod_settings.server.backend_port, 8080);
         assert_eq!(prod_settings.server.default_language.as_str(), "en");
         assert_eq!(prod_settings.logging.level.as_str(), "info");
-        env::remove_var("RUN_MODE");
+    }
 
-        // Test with environment override
+    #[test]
+    #[serial]
+    fn test_settings_new_with_env_override() {
+        setup();
+
+        // Setup mock config
+        Settings::with_mock_fs().lock().unwrap().write(
+            "config/config.dev.toml",
+            r#"[server]
+backend_port = 3333
+default_language = "en"
+
+[logging]
+level = "debug"
+"#,
+        );
+
         env::set_var("APP__SERVER__BACKEND_PORT", "5000");
-        #[allow(clippy::unwrap_used)]
         let override_settings = Settings::new().unwrap();
         assert_eq!(override_settings.server.backend_port, 5000);
-        env::remove_var("APP__SERVER__BACKEND_PORT");
     }
 }

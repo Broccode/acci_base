@@ -1,0 +1,18 @@
+# Test Environment Configuration
+
+[server]
+backend_port = 3333
+default_language = "en"
+
+[database]
+# host = "localhost"
+# port = 5432
+# name = "acci_test"
+# user = "acci"
+# password = ""
+
+[redis]
+# url = "redis://localhost:6379"
+
+[logging]
+level = "debug"

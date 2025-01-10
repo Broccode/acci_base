@@ -190,6 +190,13 @@ Create a git tag for the version (e.g., v0.2.0)
   - Better logging with appropriate warning levels
   - Cleaner separation of environment-specific settings
   - Type-safe configuration value handling
+- Enhanced configuration system
+  - Moved configuration files to /config directory
+  - Improved default value handling to only apply when values are missing
+  - Standardized configuration file naming (config.{env}.toml)
+  - Separated test configuration handling to use fixed file
+  - Enhanced configuration loading priority (env vars > config file > defaults)
+  - Improved error messages for configuration loading failures
 
 ### Fixed
 - Fixed Clippy warnings for unnecessary borrows and unwraps

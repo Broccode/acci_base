@@ -8,4 +8,5 @@
 .env.prod
 .env.test
 
-test_locales
+config.dev.toml
+config.prod.toml

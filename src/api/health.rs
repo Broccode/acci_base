@@ -10,17 +10,26 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::SystemTime;
+use tracing::{debug, error, info};
 
+/// Query parameters for language selection
 #[derive(Debug, Deserialize)]
 pub struct LanguageQuery {
+    /// Optional language code (defaults to "en" if not provided)
     lang: Option<String>,
 }
 
-#[derive(Serialize, Deserialize)]
+/// Response structure for health and readiness endpoints
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct HealthResponse {
+    /// Current system status
     status: String,
+    /// Detailed status message
     message: String,
+    /// Current application version
     version: String,
+    /// Unix timestamp of the response
     timestamp: u64,
 }
 
@@ -47,17 +56,24 @@ impl IntoResponse for AppError {
     }
 }
 
+/// Returns a router with health check endpoints configured
 pub fn health_routes() -> Router {
     Router::new()
         .route("/health", get(health_check))
         .route("/ready", get(readiness_check))
 }
 
+/// Health check endpoint handler
+///
+/// Returns the current health status of the system
 #[debug_handler]
+#[tracing::instrument(skip(i18n))]
 async fn health_check(
     Query(query): Query<LanguageQuery>,
     Extension(i18n): Extension<Arc<I18nManager>>,
 ) -> Result<Json<HealthResponse>, AppError> {
+    debug!("Processing health check request");
+    
     let lang = query.lang.unwrap_or_else(|| "en".to_string());
     let status_message = i18n.format_message(&lang, "health-status", None).await;
     let status = i18n
@@ -67,8 +83,13 @@ async fn health_check(
     let timestamp = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .map(|d| d.as_secs())
-        .map_err(|e| AppError::Database(format!("Failed to get system time: {}", e)))?;
+        .map_err(|e| {
+            error!("Failed to get system time: {}", e);
+            AppError::Database(format!("Failed to get system time: {}", e))
+        })?;
 
+    info!("Health check completed successfully");
+    
     Ok(Json(HealthResponse {
         status,
         message: status_message,
@@ -77,11 +98,17 @@ async fn health_check(
     }))
 }
 
+/// Readiness check endpoint handler
+///
+/// Verifies if the system is ready to accept requests
 #[debug_handler]
+#[tracing::instrument(skip(i18n))]
 async fn readiness_check(
     Query(query): Query<LanguageQuery>,
     Extension(i18n): Extension<Arc<I18nManager>>,
 ) -> Result<Json<HealthResponse>, AppError> {
+    debug!("Processing readiness check request");
+    
     let lang = query.lang.unwrap_or_else(|| "en".to_string());
     let status = i18n
         .format_message(&lang, "system-status-ready", None)
@@ -93,8 +120,13 @@ async fn readiness_check(
     let timestamp = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .map(|d| d.as_secs())
-        .map_err(|e| AppError::Database(format!("Failed to get system time: {}", e)))?;
+        .map_err(|e| {
+            error!("Failed to get system time: {}", e);
+            AppError::Database(format!("Failed to get system time: {}", e))
+        })?;
 
+    info!("Readiness check completed successfully");
+    
     Ok(Json(HealthResponse {
         status,
         message,
@@ -134,7 +166,7 @@ mod tests {
             .uri("/health?lang=en")
             .header(header::ACCEPT_LANGUAGE, "en")
             .body(Body::empty())
-            .unwrap();
+            .expect("Failed to build request");
 
         let response = app
             .oneshot(request)
@@ -145,11 +177,13 @@ mod tests {
 
         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
             .await
-            .unwrap();
-        let health_response: HealthResponse = serde_json::from_slice(&body).unwrap();
+            .expect("Failed to read response body");
+        let health_response: HealthResponse = serde_json::from_slice(&body)
+            .expect("Failed to parse response JSON");
 
         assert_eq!(health_response.status, "Healthy");
         assert_eq!(health_response.version, env!("CARGO_PKG_VERSION"));
+        assert!(health_response.timestamp > 0, "Timestamp should be positive");
     }
 
     #[tokio::test]
@@ -160,7 +194,7 @@ mod tests {
             .uri("/ready?lang=en")
             .header(header::ACCEPT_LANGUAGE, "en")
             .body(Body::empty())
-            .unwrap();
+            .expect("Failed to build request");
 
         let response = app
             .oneshot(request)
@@ -171,10 +205,30 @@ mod tests {
 
         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
             .await
-            .unwrap();
-        let health_response: HealthResponse = serde_json::from_slice(&body).unwrap();
+            .expect("Failed to read response body");
+        let health_response: HealthResponse = serde_json::from_slice(&body)
+            .expect("Failed to parse response JSON");
 
         assert_eq!(health_response.status, "Ready");
         assert_eq!(health_response.version, env!("CARGO_PKG_VERSION"));
+        assert!(health_response.timestamp > 0, "Timestamp should be positive");
+    }
+
+    #[tokio::test]
+    async fn test_invalid_language() {
+        let app = setup_test_app().await;
+
+        let request = Request::builder()
+            .uri("/health?lang=invalid")
+            .header(header::ACCEPT_LANGUAGE, "invalid")
+            .body(Body::empty())
+            .expect("Failed to build request");
+
+        let response = app
+            .oneshot(request)
+            .await
+            .expect("Failed to execute request");
+
+        assert_eq!(response.status(), StatusCode::OK);
     }
 }

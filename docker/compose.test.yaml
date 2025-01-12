@@ -1,0 +1,77 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.test
+    environment:
+      - RUST_BACKTRACE=1
+      - RUST_LOG=${LOGGING_LEVEL:-debug}
+      - DEFAULT_LANGUAGE=${SERVER_DEFAULT_LANGUAGE:-en}
+      - CONFIG_FILE=/app/config.toml
+      - TEST_COVERAGE=true
+    volumes:
+      - ../config/config.test.toml:/app/config.toml
+      - ../target/coverage:/app/target/coverage
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=${DATABASE_NAME:-acci_test}
+      - POSTGRES_USER=${DATABASE_USER:-acci}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-test_password}
+    ports:
+      - "${DATABASE_PORT:-5432}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}} --bind 0.0.0.0
+    environment:
+      - REDIS_URL=${REDIS_URL:-redis://localhost:6379}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    tmpfs:
+      - /data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  security-scan:
+    image: aquasec/trivy:latest
+    volumes:
+      - ../:/app
+    command: ["fs", "--security-checks", "vuln,config", "--severity", "HIGH,CRITICAL", "/app"]
+
+  test-runner:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.test
+    command: ["cargo", "test", "--all-features", "--workspace"]
+    environment:
+      - RUST_BACKTRACE=1
+      - RUST_LOG=${LOGGING_LEVEL:-debug}
+      - DEFAULT_LANGUAGE=${SERVER_DEFAULT_LANGUAGE:-en}
+      - CONFIG_FILE=/app/config.toml
+      - TEST_COVERAGE=true
+    volumes:
+      - ../config/config.test.toml:/app/config.toml
+      - ../target/coverage:/app/target/coverage
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy

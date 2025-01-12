@@ -1,4 +1,12 @@
-FROM --platform=$BUILDPLATFORM rust:1.82-slim AS builder
+FROM --platform=$BUILDPLATFORM lukemathwalker/cargo-chef:latest-rust-1.82 AS chef
+WORKDIR /app
+
+FROM chef AS planner
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM --platform=$BUILDPLATFORM chef AS builder
+ARG TARGETPLATFORM
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -10,16 +18,26 @@ RUN apt-get update && apt-get install -y \
     libclang-dev \
     gcc-powerpc64le-linux-gnu \
     libc6-dev-ppc64el-cross \
+    gcc-x86-64-linux-gnu \
+    gcc \
+    g++ \
+    musl-tools \
     && rm -rf /var/lib/apt/lists/*
+
+# Set up cross-compilation environment
+ENV CC_x86_64_unknown_linux_gnu=x86_64-linux-gnu-gcc
+ENV CXX_x86_64_unknown_linux_gnu=x86_64-linux-gnu-g++
+ENV AR_x86_64_unknown_linux_gnu=x86_64-linux-gnu-ar
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=x86_64-linux-gnu-gcc
 
 # Create appuser
 RUN adduser --no-create-home --disabled-password --gecos "" appuser
 
-WORKDIR /app
-COPY . .
+# Build dependencies - this is the caching Docker layer!
+COPY --from=planner /app/recipe.json recipe.json
+RUN cargo chef cook --recipe-path recipe.json
 
 # Build with optimizations
-ARG TARGETPLATFORM
 RUN case "$TARGETPLATFORM" in \
     "linux/amd64")  \
         TARGET="x86_64-unknown-linux-gnu" \
@@ -36,8 +54,20 @@ RUN case "$TARGETPLATFORM" in \
     *)  TARGET="x86_64-unknown-linux-gnu" \
         ;; \
     esac && \
-    rustup target add $TARGET && \
-    cargo build --release --target $TARGET
+    rustup target add $TARGET
+
+# Build application
+COPY . .
+RUN case "$TARGETPLATFORM" in \
+    "linux/amd64")  \
+        cargo build --release --target x86_64-unknown-linux-gnu \
+        ;; \
+    "linux/ppc64le")  \
+        cargo build --release --target powerpc64le-unknown-linux-gnu \
+        ;; \
+    *)  cargo build --release --target x86_64-unknown-linux-gnu \
+        ;; \
+    esac
 
 # Generate SBOM
 RUN cargo install cargo-cyclonedx
@@ -63,6 +93,7 @@ USER appuser
 ENV RUST_BACKTRACE=0
 ENV RUST_LOG=info
 
-EXPOSE 8080
+ARG SERVER_BACKEND_PORT=3333
+EXPOSE ${SERVER_BACKEND_PORT}
 
 ENTRYPOINT ["/app/acci_base"]

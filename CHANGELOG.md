@@ -162,6 +162,11 @@ Create a git tag for the version (e.g., v0.2.0)
   - Error handling for invalid/inactive tenants
 
 ### Changed
+- Enhanced Docker configuration management
+  - Standardized environment variable usage across all Docker configurations
+  - Added DEFAULT_LANGUAGE support in all compose files
+  - Improved port configuration handling in Dockerfiles
+  - Enhanced Redis configuration with proper URL and binding
 - Improved test assertion readability in error handling tests
 - Enhanced thread safety in i18n implementation using intl-memoizer
 - Enhanced health check system

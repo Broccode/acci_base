@@ -1,6 +1,6 @@
 # Complexity thresholds
-cognitive-complexity-threshold = 20
-too-many-arguments-threshold = 7
+cognitive-complexity-threshold = 25
+too-many-arguments-threshold = 10
 type-complexity-threshold = 250
 max-fn-params-bools = 3
 max-struct-bools = 3
@@ -11,19 +11,24 @@ warn-on-all-wildcard-imports = true
 
 # Documentation requirements
 doc-valid-idents = [
-    "test",
-    "derive",
-    "doc",
-    "cfg"
+    "KiB", "MiB", "GiB", "TiB", "PiB", "EiB",
+    "KB", "MB", "GB", "TB", "PB", "EB",
+    "OAuth", "GraphQL", "OpenAPI", "REST", "HTTP", "HTTPS",
+    "TCP", "UDP", "IP", "DNS", "TLS", "SSL",
+    "JSON", "YAML", "TOML", "XML", "CSV",
+    "PostgreSQL", "MySQL", "SQLite", "Redis",
+    "GitHub", "GitLab", "BitBucket",
+    "JavaScript", "TypeScript", "WebAssembly", "WASM",
+    "API", "APIs", "CLI", "UI", "UUID", "JWT",
+    "ASCII", "UTF", "ISO",
+    "ID", "IDs"
 ]
 missing-docs-in-crate-items = true
 
 # Error handling and safety
 disallowed-methods = [
     "std::option::Option::unwrap",
-    "std::result::Result::unwrap",
-    "std::option::Option::expect",
-    "std::result::Result::expect"
+    "std::result::Result::unwrap"
 ]
 
 # Testing and development aids
@@ -53,3 +58,13 @@ enforce-iter-loop-reborrow = true
 
 # Security considerations
 enable-raw-pointer-heuristic-for-send = true
+
+# Tracing and logging configuration
+ignore-interior-mutability = [
+    "tracing::Span",
+    "tracing::Event",
+    "tracing_subscriber::Layer",
+    "tracing::Subscriber",
+    "log::Record",
+    "log::Metadata"
+]

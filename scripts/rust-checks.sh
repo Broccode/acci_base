@@ -23,6 +23,10 @@ cargo check --all-features
 echo "→ Running cargo test..."
 cargo test --all-features
 
+# Run cargo clippy fixes
+echo "→ Running cargo clippy fixes..."
+cargo clippy --fix --allow-dirty --allow-staged
+
 # Run cargo clippy
 echo "→ Running cargo clippy..."
 cargo clippy --all-features -- -D warnings

@@ -73,7 +73,7 @@ async fn health_check(
     Extension(i18n): Extension<Arc<I18nManager>>,
 ) -> Result<Json<HealthResponse>, AppError> {
     debug!("Processing health check request");
-    
+
     let lang = query.lang.unwrap_or_else(|| "en".to_string());
     let status_message = i18n.format_message(&lang, "health-status", None).await;
     let status = i18n
@@ -89,7 +89,7 @@ async fn health_check(
         })?;
 
     info!("Health check completed successfully");
-    
+
     Ok(Json(HealthResponse {
         status,
         message: status_message,
@@ -108,7 +108,7 @@ async fn readiness_check(
     Extension(i18n): Extension<Arc<I18nManager>>,
 ) -> Result<Json<HealthResponse>, AppError> {
     debug!("Processing readiness check request");
-    
+
     let lang = query.lang.unwrap_or_else(|| "en".to_string());
     let status = i18n
         .format_message(&lang, "system-status-ready", None)
@@ -126,7 +126,7 @@ async fn readiness_check(
         })?;
 
     info!("Readiness check completed successfully");
-    
+
     Ok(Json(HealthResponse {
         status,
         message,
@@ -178,12 +178,15 @@ mod tests {
         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
             .await
             .expect("Failed to read response body");
-        let health_response: HealthResponse = serde_json::from_slice(&body)
-            .expect("Failed to parse response JSON");
+        let health_response: HealthResponse =
+            serde_json::from_slice(&body).expect("Failed to parse response JSON");
 
         assert_eq!(health_response.status, "Healthy");
         assert_eq!(health_response.version, env!("CARGO_PKG_VERSION"));
-        assert!(health_response.timestamp > 0, "Timestamp should be positive");
+        assert!(
+            health_response.timestamp > 0,
+            "Timestamp should be positive"
+        );
     }
 
     #[tokio::test]
@@ -206,12 +209,15 @@ mod tests {
         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
             .await
             .expect("Failed to read response body");
-        let health_response: HealthResponse = serde_json::from_slice(&body)
-            .expect("Failed to parse response JSON");
+        let health_response: HealthResponse =
+            serde_json::from_slice(&body).expect("Failed to parse response JSON");
 
         assert_eq!(health_response.status, "Ready");
         assert_eq!(health_response.version, env!("CARGO_PKG_VERSION"));
-        assert!(health_response.timestamp > 0, "Timestamp should be positive");
+        assert!(
+            health_response.timestamp > 0,
+            "Timestamp should be positive"
+        );
     }
 
     #[tokio::test]

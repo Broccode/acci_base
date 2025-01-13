@@ -167,6 +167,14 @@ Create a git tag for the version (e.g., v0.2.0)
   - Enabled documentation formatting features
   - Set consistent function and control flow formatting
   - Enabled advanced formatting features for macros and strings
+- Database migration support using sea-orm-migration
+- Initial migration for tenant schema
+- CLI tool for managing database migrations
+- Initial project setup with basic architecture
+- Base tenant domain model and database schema
+- User domain model with roles and settings
+- Database migration for users table with proper indexes and constraints
+- User-tenant relationship with proper foreign key constraints
 
 ### Changed
 - Enhanced Docker configuration management

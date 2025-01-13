@@ -46,6 +46,7 @@ impl IntoResponse for AppError {
             AppError::Validation(_) => StatusCode::BAD_REQUEST,
             AppError::I18n(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::Tenant(_) => StatusCode::BAD_REQUEST,
+            AppError::User(_) => StatusCode::BAD_REQUEST,
         };
 
         let error_response = ErrorResponse {

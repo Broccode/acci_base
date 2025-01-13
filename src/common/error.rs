@@ -9,6 +9,9 @@ pub enum AppError {
     #[error("Tenant error: {0}")]
     Tenant(String),
 
+    #[error("User error: {0}")]
+    User(String),
+
     #[error("Authentication error: {0}")]
     Auth(String),
 

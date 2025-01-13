@@ -1,4 +1,4 @@
-.PHONY: dev test prod clean env-dev env-test env-prod
+.PHONY: dev test prod clean env-dev env-test env-prod migrate migrate-down migrate-status
 
 # Default target
 dev: env-dev
@@ -50,6 +50,16 @@ logs:
 ps:
 	docker compose -f docker/compose.$(ENV).yaml ps
 
+# Migration targets
+migrate: ## Run database migrations
+	cargo run --package migration
+
+migrate-down: ## Revert last database migration
+	cargo run --package migration -- down
+
+migrate-status: ## Show migration status
+	cargo run --package migration -- status
+
 # Help target
 help:
 	@echo "Available targets:"
@@ -65,3 +75,6 @@ help:
 	@echo "  clean       - Clean up all environments"
 	@echo "  logs        - Show logs (use ENV=dev|test|prod)"
 	@echo "  ps          - Show running containers (use ENV=dev|test|prod)"
+	@echo "  migrate     - Run database migrations"
+	@echo "  migrate-down - Revert last database migration"
+	@echo "  migrate-status - Show migration status"

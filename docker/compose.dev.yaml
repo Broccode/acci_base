@@ -4,17 +4,19 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.dev
     volumes:
-      - ../src:/app/src
-      - ../tests:/app/tests
-      - ../Cargo.toml:/app/Cargo.toml
-      - ../Cargo.lock:/app/Cargo.lock
-      - ../config/config.dev.toml:/app/config.toml
+      - ..:/app
+      # - ../src:/app/src
+      # - ../tests:/app/tests
+      # - ../Cargo.toml:/app/Cargo.toml
+      # - ../Cargo.lock:/app/Cargo.lock
+      # - ../config:/app/config
+      # - ../scripts:/app/scripts
+      # - ../locales:/app/locales
     ports:
       - "${SERVER_BACKEND_PORT:-3333}:${SERVER_BACKEND_PORT:-3333}"
     environment:
       - RUST_BACKTRACE=1
       - RUST_LOG=${LOGGING_LEVEL:-debug}
-      - DEFAULT_LANGUAGE=${SERVER_DEFAULT_LANGUAGE:-en}
       - CONFIG_FILE=/app/config.toml
     depends_on:
       db:
@@ -25,15 +27,15 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      - POSTGRES_DB=${DATABASE_NAME}
-      - POSTGRES_USER=${DATABASE_USER}
-      - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
+      - POSTGRES_DB=${DATABASE_NAME:-acci_dev}
+      - POSTGRES_USER=${DATABASE_USER:-acci}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-acci_dev_password}
     ports:
       - "${DATABASE_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: pg_isready
+      test: pg_isready -U ${DATABASE_USER:-acci}
       interval: 10s
       timeout: 5s
       retries: 5

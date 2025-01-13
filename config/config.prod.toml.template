@@ -1,18 +1,18 @@
 # Production Environment Configuration
 
 [server]
-backend_port = 8080
+backend_port = 3333
 default_language = "en"
 
 [database]
-# host = ""
-# port = 5432
-# name = "acci"
-# user = "acci"
-# password = ""
+host = "db"
+port = 5432
+name = "acci"
+user = "acci"
+password = "acci"
 
 [redis]
-# url = "redis://redis:6379"
+url = "redis://redis:6379"
 
 [logging]
 level = "info"

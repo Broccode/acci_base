@@ -6,7 +6,6 @@ services:
     environment:
       - RUST_BACKTRACE=1
       - RUST_LOG=${LOGGING_LEVEL:-debug}
-      - DEFAULT_LANGUAGE=${SERVER_DEFAULT_LANGUAGE:-en}
       - CONFIG_FILE=/app/config.toml
       - TEST_COVERAGE=true
     volumes:
@@ -21,15 +20,15 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      - POSTGRES_DB=${DATABASE_NAME:-acci_test}
+      - POSTGRES_DB=${DATABASE_NAME:-acci}
       - POSTGRES_USER=${DATABASE_USER:-acci}
-      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-test_password}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-acci}
     ports:
       - "${DATABASE_PORT:-5432}:5432"
     tmpfs:
       - /var/lib/postgresql/data
     healthcheck:
-      test: pg_isready
+      test: pg_isready -U ${DATABASE_USER:-acci}
       interval: 10s
       timeout: 5s
       retries: 5
@@ -64,7 +63,6 @@ services:
     environment:
       - RUST_BACKTRACE=1
       - RUST_LOG=${LOGGING_LEVEL:-debug}
-      - DEFAULT_LANGUAGE=${SERVER_DEFAULT_LANGUAGE:-en}
       - CONFIG_FILE=/app/config.toml
       - TEST_COVERAGE=true
     volumes:

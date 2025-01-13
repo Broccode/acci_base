@@ -22,12 +22,14 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-# Convert TOML to YAML (yq supports TOML input)
-# Then extract all leaf nodes with their full path
-# And format them as environment variables
-yq -o=props "$CONFIG_FILE" | \
-    sed 's/\./\_/g' | \
-    awk '{print toupper($0)}' > "$ENV_FILE"
+# Convert TOML to YAML and process each line
+# Only convert keys to uppercase, keep values as is
+yq -o=props "$CONFIG_FILE" | while IFS='=' read -r key value; do
+    # Convert dots to underscores and uppercase only the key
+    key=$(echo "$key" | sed 's/\./\_/g' | tr '[:lower:]' '[:upper:]')
+    # Print the uppercase key with original value
+    echo "$key=$value"
+done > "$ENV_FILE"
 
 echo "Environment variables written to $ENV_FILE"
 

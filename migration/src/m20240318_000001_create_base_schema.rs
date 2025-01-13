@@ -14,8 +14,18 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(ColumnDef::new(Tenant::Id).uuid().not_null().primary_key())
                     .col(ColumnDef::new(Tenant::Name).string().not_null())
-                    .col(ColumnDef::new(Tenant::Domain).string().not_null().unique_key())
-                    .col(ColumnDef::new(Tenant::IsActive).boolean().not_null().default(true))
+                    .col(
+                        ColumnDef::new(Tenant::Domain)
+                            .string()
+                            .not_null()
+                            .unique_key(),
+                    )
+                    .col(
+                        ColumnDef::new(Tenant::IsActive)
+                            .boolean()
+                            .not_null()
+                            .default(true),
+                    )
                     .col(ColumnDef::new(Tenant::Settings).json().not_null())
                     .col(
                         ColumnDef::new(Tenant::CreatedAt)

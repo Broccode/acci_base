@@ -113,7 +113,7 @@ where
             };
 
             // 2. Tenant validieren
-            if let Err(e) = tenant.validate_active() {
+            if let Err((e, _)) = tenant.validate_active() {
                 return Ok(create_error_response(
                     StatusCode::FORBIDDEN,
                     format!("Tenant error: {}", e),

@@ -1,17 +1,18 @@
 use chrono::{DateTime, Utc};
+use lazy_static::lazy_static;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use regex::Regex;
-use lazy_static::lazy_static;
 
-use crate::common::error::{AppError, AppResult};
+use crate::common::error::{AppError, AppResult, ErrorContext};
 use crate::domain::tenant::TenantContext;
 
 lazy_static! {
     static ref EMAIL_REGEX: Regex = Regex::new(
         r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
-    ).unwrap();
-    static ref USERNAME_REGEX: Regex = Regex::new(r"^[a-zA-Z0-9_]{3,32}$").unwrap();
+    ).expect("Invalid email validation regex pattern");
+    static ref USERNAME_REGEX: Regex = Regex::new(r"^[a-zA-Z0-9_]{3,32}$")
+        .expect("Invalid username validation regex pattern");
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -77,6 +78,7 @@ pub struct UserContext {
 
 impl User {
     // Validate all user fields
+    #[allow(dead_code)]
     pub fn validate(&self) -> AppResult<()> {
         self.validate_email()?;
         self.validate_username()?;
@@ -88,7 +90,10 @@ impl User {
     // Validate email format using regex
     fn validate_email(&self) -> AppResult<()> {
         if !EMAIL_REGEX.is_match(&self.email) {
-            return Err(AppError::Validation("Invalid email format".into()));
+            return Err((
+                AppError::Validation("Invalid email format".into()),
+                ErrorContext::new(),
+            ));
         }
         Ok(())
     }
@@ -96,9 +101,12 @@ impl User {
     // Validate username format and length
     fn validate_username(&self) -> AppResult<()> {
         if !USERNAME_REGEX.is_match(&self.username) {
-            return Err(AppError::Validation(
-                "Username must be 3-32 characters and contain only letters, numbers, and underscores"
-                    .into(),
+            return Err((
+                AppError::Validation(
+                    "Username must be 3-32 characters and contain only letters, numbers, and underscores"
+                        .into(),
+                ),
+                ErrorContext::new(),
             ));
         }
         Ok(())
@@ -107,10 +115,16 @@ impl User {
     // Validate full name length and content
     fn validate_full_name(&self) -> AppResult<()> {
         if self.full_name.trim().is_empty() {
-            return Err(AppError::Validation("Full name cannot be empty".into()));
+            return Err((
+                AppError::Validation("Full name cannot be empty".into()),
+                ErrorContext::new(),
+            ));
         }
         if self.full_name.len() > 100 {
-            return Err(AppError::Validation("Full name cannot exceed 100 characters".into()));
+            return Err((
+                AppError::Validation("Full name cannot exceed 100 characters".into()),
+                ErrorContext::new(),
+            ));
         }
         Ok(())
     }
@@ -118,18 +132,34 @@ impl User {
     // Validate user settings
     fn validate_settings(&self) -> AppResult<()> {
         // Validate items per page range
-        if self.settings.ui_preferences.items_per_page < 1 || self.settings.ui_preferences.items_per_page > 100 {
-            return Err(AppError::Validation("Items per page must be between 1 and 100".into()));
+        if self.settings.ui_preferences.items_per_page < 1
+            || self.settings.ui_preferences.items_per_page > 100
+        {
+            return Err((
+                AppError::Validation("Items per page must be between 1 and 100".into()),
+                ErrorContext::new(),
+            ));
         }
 
         // Validate language code format
-        if !self.settings.language.chars().all(|c| c.is_ascii_alphabetic() || c == '-') {
-            return Err(AppError::Validation("Invalid language code format".into()));
+        if !self
+            .settings
+            .language
+            .chars()
+            .all(|c| c.is_ascii_alphabetic() || c == '-')
+        {
+            return Err((
+                AppError::Validation("Invalid language code format".into()),
+                ErrorContext::new(),
+            ));
         }
 
         // Validate timezone format (basic check)
         if self.settings.timezone.trim().is_empty() {
-            return Err(AppError::Validation("Timezone cannot be empty".into()));
+            return Err((
+                AppError::Validation("Timezone cannot be empty".into()),
+                ErrorContext::new(),
+            ));
         }
 
         Ok(())
@@ -146,9 +176,12 @@ impl UserContext {
         }
     }
 
-    pub fn validate_active(&self) -> Result<(), AppError> {
+    pub fn validate_active(&self) -> AppResult<()> {
         if !self.user.is_active {
-            return Err(AppError::User("User is not active".into()));
+            return Err((
+                AppError::User("User is not active".into()),
+                ErrorContext::new(),
+            ));
         }
         Ok(())
     }

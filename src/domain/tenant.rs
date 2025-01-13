@@ -8,8 +8,8 @@ use uuid::Uuid;
 lazy_static! {
     // Domain validation regex (basic validation, can be enhanced)
     static ref DOMAIN_REGEX: Regex = Regex::new(
-        r"^([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$"
-    ).unwrap();
+        r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$"
+    ).expect("Invalid domain validation regex pattern");
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,6 +46,7 @@ pub struct TenantContext {
 
 impl Tenant {
     // Main validation method that checks all tenant fields
+    #[allow(dead_code)]
     pub fn validate(&self) -> AppResult<()> {
         self.validate_name()?;
         self.validate_domain()?;
@@ -56,10 +57,16 @@ impl Tenant {
     // Validate tenant name
     fn validate_name(&self) -> AppResult<()> {
         if self.name.trim().is_empty() {
-            return Err(AppError::Validation("Tenant name cannot be empty".into()));
+            return Err((
+                AppError::Validation("Tenant name cannot be empty".into()),
+                ErrorContext::new(),
+            ));
         }
         if self.name.len() > 100 {
-            return Err(AppError::Validation("Tenant name cannot exceed 100 characters".into()));
+            return Err((
+                AppError::Validation("Tenant name cannot exceed 100 characters".into()),
+                ErrorContext::new(),
+            ));
         }
         Ok(())
     }
@@ -67,7 +74,10 @@ impl Tenant {
     // Validate domain format
     fn validate_domain(&self) -> AppResult<()> {
         if !DOMAIN_REGEX.is_match(&self.domain) {
-            return Err(AppError::Validation("Invalid domain format".into()));
+            return Err((
+                AppError::Validation("Invalid domain format".into()),
+                ErrorContext::new(),
+            ));
         }
         Ok(())
     }
@@ -76,17 +86,26 @@ impl Tenant {
     fn validate_settings(&self) -> AppResult<()> {
         // Validate max users
         if self.settings.max_users < 1 {
-            return Err(AppError::Validation("Max users must be at least 1".into()));
+            return Err((
+                AppError::Validation("Max users must be at least 1".into()),
+                ErrorContext::new(),
+            ));
         }
 
         // Validate storage limit (minimum 1MB)
-        if self.settings.storage_limit < 1_048_576 {
-            return Err(AppError::Validation("Storage limit must be at least 1MB".into()));
+        if self.settings.storage_limit < 1024 * 1024 {
+            return Err((
+                AppError::Validation("Storage limit must be at least 1MB".into()),
+                ErrorContext::new(),
+            ));
         }
 
         // Validate API rate limit
         if self.settings.api_rate_limit < 1 {
-            return Err(AppError::Validation("API rate limit must be at least 1".into()));
+            return Err((
+                AppError::Validation("API rate limit must be at least 1".into()),
+                ErrorContext::new(),
+            ));
         }
 
         Ok(())
@@ -94,18 +113,21 @@ impl Tenant {
 
     // Validate active status with i18n support
     #[allow(dead_code)]
-    pub async fn validate_with_i18n(&self, i18n: &I18nManager, lang: &str) -> Result<(), AppError> {
+    pub async fn validate_i18n(&self, i18n: &I18nManager, lang: &str) -> AppResult<()> {
         if !self.is_active {
             let msg = i18n.format_message(lang, "tenant-not-active", None).await;
-            return Err(AppError::Tenant(msg));
+            return Err((AppError::Tenant(msg), ErrorContext::new()));
         }
         Ok(())
     }
 
     // Simple active status validation
-    pub fn validate_active(&self) -> Result<(), AppError> {
+    pub fn validate_active(&self) -> AppResult<()> {
         if !self.is_active {
-            return Err(AppError::Tenant("Tenant is not active".into()));
+            return Err((
+                AppError::Tenant("Tenant is not active".into()),
+                ErrorContext::new(),
+            ));
         }
         Ok(())
     }

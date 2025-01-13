@@ -1,9 +1,18 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use regex::Regex;
+use lazy_static::lazy_static;
 
-use crate::common::error::AppError;
+use crate::common::error::{AppError, AppResult};
 use crate::domain::tenant::TenantContext;
+
+lazy_static! {
+    static ref EMAIL_REGEX: Regex = Regex::new(
+        r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
+    ).unwrap();
+    static ref USERNAME_REGEX: Regex = Regex::new(r"^[a-zA-Z0-9_]{3,32}$").unwrap();
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
@@ -64,6 +73,67 @@ pub struct UserContext {
     pub user: User,
     pub tenant_context: TenantContext,
     pub request_id: String,
+}
+
+impl User {
+    // Validate all user fields
+    pub fn validate(&self) -> AppResult<()> {
+        self.validate_email()?;
+        self.validate_username()?;
+        self.validate_full_name()?;
+        self.validate_settings()?;
+        Ok(())
+    }
+
+    // Validate email format using regex
+    fn validate_email(&self) -> AppResult<()> {
+        if !EMAIL_REGEX.is_match(&self.email) {
+            return Err(AppError::Validation("Invalid email format".into()));
+        }
+        Ok(())
+    }
+
+    // Validate username format and length
+    fn validate_username(&self) -> AppResult<()> {
+        if !USERNAME_REGEX.is_match(&self.username) {
+            return Err(AppError::Validation(
+                "Username must be 3-32 characters and contain only letters, numbers, and underscores"
+                    .into(),
+            ));
+        }
+        Ok(())
+    }
+
+    // Validate full name length and content
+    fn validate_full_name(&self) -> AppResult<()> {
+        if self.full_name.trim().is_empty() {
+            return Err(AppError::Validation("Full name cannot be empty".into()));
+        }
+        if self.full_name.len() > 100 {
+            return Err(AppError::Validation("Full name cannot exceed 100 characters".into()));
+        }
+        Ok(())
+    }
+
+    // Validate user settings
+    fn validate_settings(&self) -> AppResult<()> {
+        // Validate items per page range
+        if self.settings.ui_preferences.items_per_page < 1 || self.settings.ui_preferences.items_per_page > 100 {
+            return Err(AppError::Validation("Items per page must be between 1 and 100".into()));
+        }
+
+        // Validate language code format
+        if !self.settings.language.chars().all(|c| c.is_ascii_alphabetic() || c == '-') {
+            return Err(AppError::Validation("Invalid language code format".into()));
+        }
+
+        // Validate timezone format (basic check)
+        if self.settings.timezone.trim().is_empty() {
+            return Err(AppError::Validation("Timezone cannot be empty".into()));
+        }
+
+        Ok(())
+    }
 }
 
 #[allow(dead_code)]
@@ -156,6 +226,43 @@ mod tests {
             "test-request",
         );
         assert!(context.validate_active().is_err());
+    }
+
+    #[test]
+    fn test_email_validation() {
+        let mut user = create_test_user(true);
+        assert!(user.validate_email().is_ok());
+
+        // Test invalid email
+        user.email = "invalid-email".to_string();
+        assert!(user.validate_email().is_err());
+    }
+
+    #[test]
+    fn test_username_validation() {
+        let mut user = create_test_user(true);
+        assert!(user.validate_username().is_ok());
+
+        // Test invalid username
+        user.username = "a".to_string(); // Too short
+        assert!(user.validate_username().is_err());
+
+        user.username = "user@name".to_string(); // Invalid characters
+        assert!(user.validate_username().is_err());
+    }
+
+    #[test]
+    fn test_full_name_validation() {
+        let mut user = create_test_user(true);
+        assert!(user.validate_full_name().is_ok());
+
+        // Test empty name
+        user.full_name = "".to_string();
+        assert!(user.validate_full_name().is_err());
+
+        // Test too long name
+        user.full_name = "a".repeat(101);
+        assert!(user.validate_full_name().is_err());
     }
 
     fn create_test_tenant() -> crate::domain::tenant::Tenant {

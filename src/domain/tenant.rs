@@ -1,7 +1,16 @@
 use crate::common::error::{AppError, AppResult, ErrorContext};
 use crate::common::i18n::I18nManager;
+use lazy_static::lazy_static;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+lazy_static! {
+    // Domain validation regex (basic validation, can be enhanced)
+    static ref DOMAIN_REGEX: Regex = Regex::new(
+        r"^([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$"
+    ).unwrap();
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tenant {
@@ -35,6 +44,73 @@ pub struct TenantContext {
     pub request_id: String,
 }
 
+impl Tenant {
+    // Main validation method that checks all tenant fields
+    pub fn validate(&self) -> AppResult<()> {
+        self.validate_name()?;
+        self.validate_domain()?;
+        self.validate_settings()?;
+        Ok(())
+    }
+
+    // Validate tenant name
+    fn validate_name(&self) -> AppResult<()> {
+        if self.name.trim().is_empty() {
+            return Err(AppError::Validation("Tenant name cannot be empty".into()));
+        }
+        if self.name.len() > 100 {
+            return Err(AppError::Validation("Tenant name cannot exceed 100 characters".into()));
+        }
+        Ok(())
+    }
+
+    // Validate domain format
+    fn validate_domain(&self) -> AppResult<()> {
+        if !DOMAIN_REGEX.is_match(&self.domain) {
+            return Err(AppError::Validation("Invalid domain format".into()));
+        }
+        Ok(())
+    }
+
+    // Validate tenant settings
+    fn validate_settings(&self) -> AppResult<()> {
+        // Validate max users
+        if self.settings.max_users < 1 {
+            return Err(AppError::Validation("Max users must be at least 1".into()));
+        }
+
+        // Validate storage limit (minimum 1MB)
+        if self.settings.storage_limit < 1_048_576 {
+            return Err(AppError::Validation("Storage limit must be at least 1MB".into()));
+        }
+
+        // Validate API rate limit
+        if self.settings.api_rate_limit < 1 {
+            return Err(AppError::Validation("API rate limit must be at least 1".into()));
+        }
+
+        Ok(())
+    }
+
+    // Validate active status with i18n support
+    #[allow(dead_code)]
+    pub async fn validate_with_i18n(&self, i18n: &I18nManager, lang: &str) -> Result<(), AppError> {
+        if !self.is_active {
+            let msg = i18n.format_message(lang, "tenant-not-active", None).await;
+            return Err(AppError::Tenant(msg));
+        }
+        Ok(())
+    }
+
+    // Simple active status validation
+    pub fn validate_active(&self) -> Result<(), AppError> {
+        if !self.is_active {
+            return Err(AppError::Tenant("Tenant is not active".into()));
+        }
+        Ok(())
+    }
+}
+
 #[allow(dead_code)]
 impl TenantContext {
     pub fn new(tenant: Tenant, request_id: impl Into<String>) -> Self {
@@ -52,24 +128,6 @@ impl TenantContext {
                     .with_tenant(self.tenant.id.to_string())
                     .with_request(self.request_id.clone()),
             ));
-        }
-        Ok(())
-    }
-}
-
-impl Tenant {
-    #[allow(dead_code)]
-    pub async fn validate(&self, i18n: &I18nManager, lang: &str) -> Result<(), AppError> {
-        if !self.is_active {
-            let msg = i18n.format_message(lang, "tenant-not-active", None).await;
-            return Err(AppError::Tenant(msg));
-        }
-        Ok(())
-    }
-
-    pub fn validate_active(&self) -> Result<(), AppError> {
-        if !self.is_active {
-            return Err(AppError::Tenant("Tenant is not active".into()));
         }
         Ok(())
     }
@@ -103,6 +161,34 @@ mod tests {
                 },
             },
         }
+    }
+
+    #[test]
+    fn test_tenant_validation() {
+        let tenant = create_test_tenant(true);
+        assert!(tenant.validate().is_ok());
+    }
+
+    #[test]
+    fn test_invalid_domain() {
+        let mut tenant = create_test_tenant(true);
+        tenant.domain = "invalid domain".to_string();
+        assert!(tenant.validate_domain().is_err());
+    }
+
+    #[test]
+    fn test_invalid_settings() {
+        let mut tenant = create_test_tenant(true);
+        tenant.settings.max_users = 0;
+        assert!(tenant.validate_settings().is_err());
+
+        tenant.settings.max_users = 100;
+        tenant.settings.storage_limit = 0;
+        assert!(tenant.validate_settings().is_err());
+
+        tenant.settings.storage_limit = 1024 * 1024 * 1024;
+        tenant.settings.api_rate_limit = 0;
+        assert!(tenant.validate_settings().is_err());
     }
 
     #[test]

@@ -117,6 +117,21 @@ Create a git tag for the version (e.g., v0.2.0)
 # [Unreleased]
 
 ### Added
+- Enhanced validation system for domain models
+  - Email validation using RFC compliant regex
+  - Username validation (3-32 chars, alphanumeric with underscore)
+  - Domain name validation using regex
+  - Comprehensive settings validation for both User and Tenant
+  - Added test coverage for all validation rules
+
+### Changed
+- Updated tenant migration schema to match domain model
+  - Added missing fields: domain, settings, is_active
+  - Enhanced timestamp fields with timezone support
+  - Added unique constraint for domain field
+  - Added performance optimization indexes
+
+### Added
 - Thread-safe i18n implementation using Fluent
   - Support for English, German, Albanian, French, and Spanish
   - Async/await compatible with tokio

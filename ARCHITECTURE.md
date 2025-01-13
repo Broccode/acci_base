@@ -160,6 +160,28 @@ COPY --from=builder /app/target/release/acci /
 ENTRYPOINT ["/acci"]
 ```
 
+### Identity Provider Architecture
+```yaml
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    environment:
+      - KC_DB=postgres
+      - KC_HOSTNAME_STRICT=false
+      - KC_PROXY=edge
+    volumes:
+      - keycloak_themes:/opt/keycloak/themes
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+```
+
 ### Platform Support
 ```rust
 #[derive(PlatformSupport)]
@@ -254,12 +276,40 @@ struct IntegrationConfig {
 ```rust
 #[derive(Authentication)]
 struct AuthFlow {
+    #[auth_method("keycloak")]
+    keycloak: KeycloakProvider,
     #[auth_method("oauth2")]
     oauth: OAuth2Provider,
     #[auth_method("ldap")]
     ldap: LDAPProvider,
     #[auth_method("local")]
     local: LocalAuth,
+
+    #[keycloak_config(
+        realm = "acci",
+        client_id = "acci-backend",
+        public_key_cache_ttl = "1h",
+        token_validation = true
+    )]
+    keycloak_settings: KeycloakConfig,
+}
+```
+
+### Authorization Flow
+```rust
+#[derive(Authorization)]
+struct AuthorizationFlow {
+    #[auth_engine("oso")]
+    policy_engine: OsoEngine,
+    
+    #[policy_location("policies/")]
+    policy_files: PolicyFiles,
+    
+    #[policy_reload(
+        watch = true,
+        interval = "30s"
+    )]
+    policy_reload: PolicyReload,
 }
 ```
 
@@ -273,6 +323,45 @@ struct TenantIsolation {
     api_isolation: APIIsolation,
     #[tenant_boundary]
     storage_isolation: StorageIsolation,
+    
+    #[keycloak_realm(
+        per_tenant = true,
+        naming = "tenant_{id}"
+    )]
+    realm_isolation: RealmIsolation,
+    
+    #[oso_policies(
+        tenant_scoped = true,
+        inheritance = true
+    )]
+    policy_isolation: PolicyIsolation,
+}
+```
+
+### Policy Management
+```rust
+#[derive(PolicyManagement)]
+struct PolicyConfig {
+    #[policy_types(
+        rbac = true,
+        abac = true,
+        resource_based = true
+    )]
+    policy_types: PolicyTypes,
+
+    #[policy_inheritance(
+        global = true,
+        tenant = true,
+        role = true
+    )]
+    inheritance: PolicyInheritance,
+
+    #[policy_validation(
+        syntax = true,
+        conflicts = true,
+        coverage = true
+    )]
+    validation: PolicyValidation,
 }
 ```
 
@@ -304,7 +393,29 @@ src/
 ├── api/          # API layer (REST & GraphQL)
 ├── domain/       # Business logic
 ├── infrastructure/ # External services
+├── policies/     # Oso policy files
+│   ├── global/   # Global policies
+│   ├── rbac/     # Role-based policies
+│   └── tenant/   # Tenant-specific policies
 └── common/       # Shared utilities
+```
+
+### Policy Development
+```polar
+# Example Oso policy file (policies/rbac/resource_access.polar)
+allow(actor: User, action, resource) if
+    has_role(actor, "admin") and
+    actor.tenant_id = resource.tenant_id;
+
+allow(actor: User, "read", resource: Document) if
+    has_role(actor, "reader") and
+    actor.tenant_id = resource.tenant_id and
+    resource.public = true;
+
+# Tenant isolation
+allow(actor: User, _, resource) if
+    actor.tenant_id = resource.tenant_id and
+    not resource.restricted;
 ```
 
 ### Error Handling

@@ -8,6 +8,10 @@ services:
       - RUST_LOG=${LOGGING_LEVEL:-debug}
       - CONFIG_FILE=/app/config.toml
       - TEST_COVERAGE=true
+      - KEYCLOAK_URL=http://keycloak:8080/auth
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-acci}
+      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-acci-backend}
+      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET:-test_secret}
     volumes:
       - ../config/config.test.toml:/app/config.toml
       - ../target/coverage:/app/target/coverage
@@ -16,6 +20,34 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      keycloak:
+        condition: service_healthy
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    command: start-dev
+    environment:
+      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN:-admin}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://db:5432/${KEYCLOAK_DB_NAME:-keycloak}
+      - KC_DB_USERNAME=${DATABASE_USER:-acci}
+      - KC_DB_PASSWORD=${DATABASE_PASSWORD:-acci}
+      - KC_HOSTNAME_STRICT=false
+      - KC_HTTP_RELATIVE_PATH=/auth
+    ports:
+      - "${KEYCLOAK_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    tmpfs:
+      - /opt/keycloak/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/auth/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   db:
     image: postgres:16-alpine

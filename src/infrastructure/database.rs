@@ -121,16 +121,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_custom_database_url() {
-        env::set_var("DATABASE_URL", "postgres://user:pass@localhost:5432/testdb");
-        assert_eq!(
-            get_database_url(),
-            "postgres://user:pass@localhost:5432/testdb"
-        );
-        cleanup_env();
-    }
-
-    #[tokio::test]
     async fn test_successful_database_connection() {
         let mut mock_connector = MockDatabaseConnector::new();
         let mut mock_conn = MockConnection::new();

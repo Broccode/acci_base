@@ -128,7 +128,7 @@ impl I18nManager {
                             .unwrap_or_else(|| panic!("Default English bundle not found"))
                     })
                     .clone()
-            }
+            },
         };
 
         let mut fluent_args = FluentArgs::new();

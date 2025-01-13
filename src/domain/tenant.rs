@@ -153,7 +153,7 @@ mod tests {
             Err((_, error_context)) => {
                 assert_eq!(error_context.tenant_id.unwrap(), tenant.id.to_string());
                 assert_eq!(error_context.request_id.unwrap(), request_id);
-            }
+            },
             Ok(_) => panic!("Expected error"),
         }
     }

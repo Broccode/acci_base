@@ -149,7 +149,7 @@ mod tests {
             Err((error, context)) => {
                 assert!(matches!(error, AppError::Validation(_)));
                 assert!(context.error_id != Uuid::nil());
-            }
+            },
         }
     }
 }

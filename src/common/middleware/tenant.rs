@@ -81,7 +81,7 @@ where
                             StatusCode::BAD_REQUEST,
                             "Invalid tenant header value",
                         ));
-                    }
+                    },
                 },
                 None => {
                     // Wenn kein Header vorhanden, versuche es über die Domain
@@ -96,9 +96,9 @@ where
                                 StatusCode::BAD_REQUEST,
                                 "Missing host header and tenant ID",
                             ));
-                        }
+                        },
                     }
-                }
+                },
             };
 
             // Fehlerbehandlung für Tenant-Ermittlung
@@ -109,7 +109,7 @@ where
                         StatusCode::NOT_FOUND,
                         format!("Tenant error: {}", e),
                     ));
-                }
+                },
             };
 
             // 2. Tenant validieren

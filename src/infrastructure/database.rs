@@ -71,7 +71,7 @@ impl DbConnection {
             Err(e) => {
                 tracing::error!("Failed to connect to database: {}", e);
                 Err((AppError::Database(e.to_string()), Default::default()))
-            }
+            },
         }
     }
 

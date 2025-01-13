@@ -160,6 +160,13 @@ Create a git tag for the version (e.g., v0.2.0)
   - Automatic tenant context injection
   - Comprehensive test coverage
   - Error handling for invalid/inactive tenants
+- Added rustfmt.toml configuration file
+  - Standardized code formatting rules
+  - Set max line width to 100 characters
+  - Configured import organization and grouping
+  - Enabled documentation formatting features
+  - Set consistent function and control flow formatting
+  - Enabled advanced formatting features for macros and strings
 
 ### Changed
 - Enhanced Docker configuration management

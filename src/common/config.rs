@@ -99,7 +99,7 @@ impl Settings {
                     run_mode
                 );
                 Settings::get_default_settings("dev")
-            }
+            },
         }
     }
 
@@ -121,11 +121,11 @@ impl Settings {
                         return None;
                     }
                     tracing::event!(Level::INFO, "Created {} from template", config_file);
-                }
+                },
                 None => {
                     tracing::event!(Level::WARN, "Failed to read template {}", template_file,);
                     return None;
-                }
+                },
             }
         }
 

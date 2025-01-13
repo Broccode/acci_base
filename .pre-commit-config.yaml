@@ -24,15 +24,21 @@ repos:
         language: system
         types: [rust]
         pass_filenames: false
-      - id: cargo-test
-        name: Cargo Test
-        entry: cargo test --all-features
+      - id: cargo-clippy-fix
+        name: Cargo Clippy Fix
+        entry: cargo clippy --fix --allow-dirty --allow-staged
         language: system
         types: [rust]
         pass_filenames: false
       - id: cargo-clippy
         name: Cargo Clippy
         entry: cargo clippy --all-features -- -D warnings
+        language: system
+        types: [rust]
+        pass_filenames: false
+      - id: cargo-test
+        name: Cargo Test
+        entry: cargo test --all-features
         language: system
         types: [rust]
         pass_filenames: false

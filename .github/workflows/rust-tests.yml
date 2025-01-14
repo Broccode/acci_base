@@ -134,9 +134,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-powerpc64le-linux-gnu cmake clang llvm-dev libclang-dev libc6-dev-ppc64el-cross
           sudo apt-get install -y libssl-dev:ppc64el
-          cargo install --force --locked bindgen-cli
-          # Set environment variables for aws-lc-sys
+          # Create symlinks for OpenSSL libraries
           if [ "${{ matrix.platform.target }}" = "powerpc64le-unknown-linux-gnu" ]; then
+            # Ensure OpenSSL directories exist
+            sudo mkdir -p /usr/powerpc64le-linux-gnu/lib/pkgconfig
+            sudo mkdir -p /usr/powerpc64le-linux-gnu/include/openssl
+            # Copy OpenSSL files from ppc64el to the cross-compilation directory
+            sudo cp -r /usr/lib/powerpc64le-linux-gnu/libssl.* /usr/powerpc64le-linux-gnu/lib/
+            sudo cp -r /usr/lib/powerpc64le-linux-gnu/libcrypto.* /usr/powerpc64le-linux-gnu/lib/
+            sudo cp -r /usr/include/powerpc64le-linux-gnu/openssl/* /usr/powerpc64le-linux-gnu/include/openssl/
+            # Set environment variables
             echo "AWS_LC_SYS_EXTERNAL_BINDGEN=1" >> $GITHUB_ENV
             echo "BINDGEN_EXTRA_CLANG_ARGS=--sysroot=/usr/powerpc64le-linux-gnu -target powerpc64le-unknown-linux-gnu" >> $GITHUB_ENV
             echo "RUST_TARGET_PATH=/usr/powerpc64le-linux-gnu" >> $GITHUB_ENV

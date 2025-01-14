@@ -81,11 +81,22 @@ cross-platform-test:
     - apt-get update
     - apt-get install -y gcc-powerpc64le-linux-gnu cmake clang llvm-dev libclang-dev libc6-dev-ppc64el-cross
     - apt-get install -y libssl-dev:ppc64el
+    # Install Rust and required tools
+    - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    - source "$HOME/.cargo/env"
     - rustup target add $TARGET
     - cargo install --force --locked bindgen-cli
-    # Set environment variables for aws-lc-sys
+    # Create symlinks for OpenSSL libraries
     - |
       if [ "$TARGET" = "powerpc64le-unknown-linux-gnu" ]; then
+        # Ensure OpenSSL directories exist
+        mkdir -p /usr/powerpc64le-linux-gnu/lib/pkgconfig
+        mkdir -p /usr/powerpc64le-linux-gnu/include/openssl
+        # Copy OpenSSL files from ppc64el to the cross-compilation directory
+        cp -r /usr/lib/powerpc64le-linux-gnu/libssl.* /usr/powerpc64le-linux-gnu/lib/
+        cp -r /usr/lib/powerpc64le-linux-gnu/libcrypto.* /usr/powerpc64le-linux-gnu/lib/
+        cp -r /usr/include/powerpc64le-linux-gnu/openssl/* /usr/powerpc64le-linux-gnu/include/openssl/
+        # Set environment variables
         export AWS_LC_SYS_EXTERNAL_BINDGEN=1
         export BINDGEN_EXTRA_CLANG_ARGS="--sysroot=/usr/powerpc64le-linux-gnu -target powerpc64le-unknown-linux-gnu"
         export RUST_TARGET_PATH=/usr/powerpc64le-linux-gnu

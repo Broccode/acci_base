@@ -234,10 +234,10 @@ allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 # List of URLs for allowed Git repositories
 allow-git = []
 
-[sources.allow-org]
+#[sources.allow-org]
 # github.com organizations to allow git sources for
-github = ["rust-lang"]
+# github = ["rust-lang"]
 # gitlab.com organizations to allow git sources for
-gitlab = []
+# gitlab = []
 # bitbucket.org organizations to allow git sources for
-bitbucket = []
+# bitbucket = []

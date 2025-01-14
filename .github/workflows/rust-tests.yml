@@ -118,6 +118,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-powerpc64le-linux-gnu cmake clang llvm-dev libclang-dev libc6-dev-ppc64el-cross
+          sudo apt-get install -y libssl-dev:ppc64el
           cargo install --force --locked bindgen-cli
           # Set environment variables for aws-lc-sys
           if [ "${{ matrix.platform.target }}" = "powerpc64le-unknown-linux-gnu" ]; then
@@ -127,6 +128,9 @@ jobs:
             echo "PKG_CONFIG_PATH=/usr/powerpc64le-linux-gnu/lib/pkgconfig" >> $GITHUB_ENV
             echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
             echo "AWS_LC_SYS_NO_ASM=1" >> $GITHUB_ENV
+            echo "OPENSSL_DIR=/usr/powerpc64le-linux-gnu" >> $GITHUB_ENV
+            echo "OPENSSL_INCLUDE_DIR=/usr/powerpc64le-linux-gnu/include" >> $GITHUB_ENV
+            echo "OPENSSL_LIB_DIR=/usr/powerpc64le-linux-gnu/lib" >> $GITHUB_ENV
             # Configure cargo for PPC64LE cross-compilation
             mkdir -p .cargo
             echo '[target.powerpc64le-unknown-linux-gnu]' > .cargo/config.toml

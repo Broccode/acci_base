@@ -61,6 +61,85 @@ pub struct Settings {
     pub logging: LoggingSettings,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
+pub struct AppConfig {
+    pub server: ServerSettings,
+    pub database: DatabaseSettings,
+    pub redis: RedisSettings,
+    pub logging: LoggingSettings,
+    pub keycloak: KeycloakConfig,
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            server: ServerSettings {
+                backend_port: 3333,
+                default_language: "en".to_string(),
+            },
+            database: DatabaseSettings {
+                host: "localhost".to_string(),
+                port: 5432,
+                name: "acci_test".to_string(),
+                user: "acci".to_string(),
+                password: "acci".to_string(),
+            },
+            redis: RedisSettings {
+                url: "redis://localhost:6379".to_string(),
+            },
+            logging: LoggingSettings {
+                level: "debug".to_string(),
+            },
+            keycloak: KeycloakConfig {
+                url: "http://localhost:8080".to_string(),
+                realm: "acci".to_string(),
+                client_id: "acci-backend".to_string(),
+                client_secret: "test_secret".to_string(),
+                verify_token: true,
+                public_key_cache_ttl: 3600,
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
+pub struct DatabaseSettings {
+    pub host: String,
+    pub port: u16,
+    pub name: String,
+    pub user: String,
+    pub password: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
+pub struct RedisSettings {
+    pub url: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
+pub struct KeycloakConfig {
+    pub url: String,
+    pub realm: String,
+    pub client_id: String,
+    pub client_secret: String,
+    #[serde(default = "default_verify_token")]
+    pub verify_token: bool,
+    #[serde(default = "default_public_key_cache_ttl")]
+    pub public_key_cache_ttl: u64,
+}
+
+fn default_verify_token() -> bool {
+    true
+}
+
+fn default_public_key_cache_ttl() -> u64 {
+    3600 // 1 hour in seconds
+}
+
 impl Settings {
     #[allow(clippy::disallowed_methods)]
     fn get_default_settings(run_mode: &str) -> Self {

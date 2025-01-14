@@ -123,6 +123,29 @@ Create a git tag for the version (e.g., v0.2.0)
   - Domain name validation using regex
   - Comprehensive settings validation for both User and Tenant
   - Added test coverage for all validation rules
+- Tenant support in authentication middleware
+- Extended UserInfo with tenant_id field
+- Tenant validation in auth middleware
+- Complete JWT Claims structure for Keycloak tokens
+- Realm and Resource access structures for role management
+- Comprehensive test suite for authentication middleware
+  - Token validation tests
+  - Tenant validation tests
+  - Role-based access tests
+  - Error handling tests
+  - Integration tests with Redis caching
+  - Test utilities for JWT token creation
+  - Mock configurations for testing
+  - Test coverage for all authentication scenarios
+- Enhanced tenant middleware integration
+  - Tenant validation based on user context
+  - Tenant state management
+  - Database integration preparation
+  - Mock implementations for testing
+  - Comprehensive test suite for tenant middleware
+  - Integration tests with auth middleware
+  - Test utilities for tenant testing
+  - Mock database connections for testing
 
 ### Changed
 - Updated tenant migration schema to match domain model
@@ -130,6 +153,17 @@ Create a git tag for the version (e.g., v0.2.0)
   - Enhanced timestamp fields with timezone support
   - Added unique constraint for domain field
   - Added performance optimization indexes
+- Updated auth middleware to validate tenant information
+- Enhanced token validation to extract tenant information from roles
+- Enhanced token validation with proper error handling
+- Improved tenant role extraction
+- Better test isolation and mocking
+- Improved middleware integration
+  - Better error handling
+  - Enhanced state management
+  - Cleaner middleware chaining
+  - More robust tenant validation
+  - Better test isolation
 
 ### Added
 - Thread-safe i18n implementation using Fluent
@@ -425,3 +459,15 @@ Create a git tag for the version (e.g., v0.2.0)
   - Infrastructure tests for database and cache connections
   - Logging system tests with context tracking
   - Total test coverage: 24 unit tests across all components
+
+### Security
+- Added mandatory tenant validation in protected routes
+- Improved role-based access control with tenant context
+- Enhanced token validation and security checks
+
+### Security
+- Enhanced tenant validation
+  - Mandatory tenant context validation
+  - Active tenant verification
+  - Proper error handling for invalid tenants
+  - Secure tenant information handling

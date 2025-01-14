@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::{compression::CompressionLayer, cors::CorsLayer, trace::TraceLayer};
 
-use crate::common::middleware::setup_i18n;
+use crate::common::middleware::LanguageLayer;
 use crate::common::{config, i18n::I18nManager};
 
 mod api;
@@ -34,7 +34,7 @@ async fn main() -> anyhow::Result<()> {
     // Build application
     let app = Router::new()
         .merge(api::health::health_routes())
-        .layer(setup_i18n(Arc::clone(&i18n_manager)))
+        .layer(LanguageLayer::new(Arc::clone(&i18n_manager)))
         .layer(TraceLayer::new_for_http())
         .layer(CompressionLayer::new())
         .layer(CorsLayer::permissive()); // TODO: Configure CORS properly for production

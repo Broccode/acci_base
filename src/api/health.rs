@@ -41,12 +41,18 @@ struct ErrorResponse {
 impl IntoResponse for AppError {
     fn into_response(self) -> axum::response::Response {
         let status = match self {
-            AppError::Database(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            AppError::Auth(_) => StatusCode::UNAUTHORIZED,
-            AppError::Validation(_) => StatusCode::BAD_REQUEST,
+            AppError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::AuthenticationError(_) => StatusCode::UNAUTHORIZED,
+            AppError::AuthorizationError(_) => StatusCode::FORBIDDEN,
+            AppError::ValidationError(_) => StatusCode::BAD_REQUEST,
+            AppError::ConfigurationError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::NotFound(_) => StatusCode::NOT_FOUND,
             AppError::I18n(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::Tenant(_) => StatusCode::BAD_REQUEST,
             AppError::User(_) => StatusCode::BAD_REQUEST,
+            AppError::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::SerializationError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         let error_response = ErrorResponse {
@@ -86,7 +92,7 @@ async fn health_check(
         .map(|d| d.as_secs())
         .map_err(|e| {
             error!("Failed to get system time: {}", e);
-            AppError::Database(format!("Failed to get system time: {}", e))
+            AppError::ConfigurationError(format!("Failed to get system time: {}", e))
         })?;
 
     info!("Health check completed successfully");
@@ -123,7 +129,7 @@ async fn readiness_check(
         .map(|d| d.as_secs())
         .map_err(|e| {
             error!("Failed to get system time: {}", e);
-            AppError::Database(format!("Failed to get system time: {}", e))
+            AppError::ConfigurationError(format!("Failed to get system time: {}", e))
         })?;
 
     info!("Readiness check completed successfully");

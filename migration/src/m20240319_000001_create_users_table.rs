@@ -1,4 +1,5 @@
 use sea_orm_migration::prelude::*;
+use sea_orm_migration::sea_query::extension::postgres::Type;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -11,7 +12,12 @@ impl MigrationTrait for Migration {
             .create_type(
                 Type::create()
                     .as_enum(UserRole::Table)
-                    .values(vec!["tenant_admin", "manager", "user", "read_only"])
+                    .values([
+                        UserRole::TenantAdmin,
+                        UserRole::Manager,
+                        UserRole::User,
+                        UserRole::ReadOnly,
+                    ])
                     .to_owned(),
             )
             .await?;
@@ -21,7 +27,12 @@ impl MigrationTrait for Migration {
             .create_type(
                 Type::create()
                     .as_enum(NotificationType::Table)
-                    .values(vec!["system", "security", "updates", "mentions"])
+                    .values([
+                        NotificationType::System,
+                        NotificationType::Security,
+                        NotificationType::Updates,
+                        NotificationType::Mentions,
+                    ])
                     .to_owned(),
             )
             .await?;
@@ -157,9 +168,25 @@ pub enum Tenants {
 #[derive(Iden)]
 pub enum UserRole {
     Table,
+    #[iden = "tenant_admin"]
+    TenantAdmin,
+    #[iden = "manager"]
+    Manager,
+    #[iden = "user"]
+    User,
+    #[iden = "read_only"]
+    ReadOnly,
 }
 
 #[derive(Iden)]
 pub enum NotificationType {
     Table,
+    #[iden = "system"]
+    System,
+    #[iden = "security"]
+    Security,
+    #[iden = "updates"]
+    Updates,
+    #[iden = "mentions"]
+    Mentions,
 }

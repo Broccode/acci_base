@@ -3,8 +3,26 @@ use uuid::Uuid;
 #[derive(Debug, thiserror::Error)]
 #[allow(dead_code)]
 pub enum AppError {
+    #[error("Configuration error: {0}")]
+    ConfigurationError(String),
+
     #[error("Database error: {0}")]
-    Database(String),
+    DatabaseError(String),
+
+    #[error("Validation error: {0}")]
+    ValidationError(String),
+
+    #[error("Not found: {0}")]
+    NotFound(String),
+
+    #[error("Authentication error: {0}")]
+    AuthenticationError(String),
+
+    #[error("Authorization error: {0}")]
+    AuthorizationError(String),
+
+    #[error("Internal server error: {0}")]
+    InternalServerError(String),
 
     #[error("Tenant error: {0}")]
     Tenant(String),
@@ -12,14 +30,23 @@ pub enum AppError {
     #[error("User error: {0}")]
     User(String),
 
-    #[error("Authentication error: {0}")]
-    Auth(String),
-
     #[error("I18n error: {0}")]
     I18n(String),
 
-    #[error("Validation error: {0}")]
-    Validation(String),
+    #[error("Serialization error: {0}")]
+    SerializationError(String),
+
+    #[error("Internal error: {0}")]
+    InternalError(String),
+}
+
+impl From<sea_orm::DbErr> for AppError {
+    fn from(err: sea_orm::DbErr) -> Self {
+        match err {
+            sea_orm::DbErr::Custom(msg) => Self::DatabaseError(msg),
+            err => Self::DatabaseError(err.to_string()),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -119,16 +146,16 @@ mod tests {
 
     #[test]
     fn test_app_error_display() {
-        let db_error = AppError::Database("connection failed".into());
+        let db_error = AppError::DatabaseError("connection failed".to_string());
         assert_eq!(db_error.to_string(), "Database error: connection failed");
 
-        let auth_error = AppError::Auth("invalid token".into());
+        let auth_error = AppError::AuthenticationError("invalid token".into());
         assert_eq!(
             auth_error.to_string(),
             "Authentication error: invalid token"
         );
 
-        let validation_error = AppError::Validation("invalid input".into());
+        let validation_error = AppError::ValidationError("invalid input".into());
         assert_eq!(
             validation_error.to_string(),
             "Validation error: invalid input"
@@ -143,14 +170,14 @@ mod tests {
 
     #[test]
     fn test_app_result_err() {
-        let error = AppError::Validation("Resource not found".into());
+        let error = AppError::ValidationError("Resource not found".into());
         let context = ErrorContext::new();
         let result: AppResult<i32> = Err((error, context));
 
         match result {
             Ok(_) => panic!("Expected error"),
             Err((error, context)) => {
-                assert!(matches!(error, AppError::Validation(_)));
+                assert!(matches!(error, AppError::ValidationError(_)));
                 assert!(context.error_id != Uuid::nil());
             },
         }

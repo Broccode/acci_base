@@ -91,7 +91,7 @@ impl User {
     fn validate_email(&self) -> AppResult<()> {
         if !EMAIL_REGEX.is_match(&self.email) {
             return Err((
-                AppError::Validation("Invalid email format".into()),
+                AppError::ValidationError("Invalid email format".into()),
                 ErrorContext::new(),
             ));
         }
@@ -102,7 +102,7 @@ impl User {
     fn validate_username(&self) -> AppResult<()> {
         if !USERNAME_REGEX.is_match(&self.username) {
             return Err((
-                AppError::Validation(
+                AppError::ValidationError(
                     "Username must be 3-32 characters and contain only letters, numbers, and underscores"
                         .into(),
                 ),
@@ -116,13 +116,13 @@ impl User {
     fn validate_full_name(&self) -> AppResult<()> {
         if self.full_name.trim().is_empty() {
             return Err((
-                AppError::Validation("Full name cannot be empty".into()),
+                AppError::ValidationError("Full name cannot be empty".into()),
                 ErrorContext::new(),
             ));
         }
         if self.full_name.len() > 100 {
             return Err((
-                AppError::Validation("Full name cannot exceed 100 characters".into()),
+                AppError::ValidationError("Full name cannot exceed 100 characters".into()),
                 ErrorContext::new(),
             ));
         }
@@ -136,7 +136,7 @@ impl User {
             || self.settings.ui_preferences.items_per_page > 100
         {
             return Err((
-                AppError::Validation("Items per page must be between 1 and 100".into()),
+                AppError::ValidationError("Items per page must be between 1 and 100".into()),
                 ErrorContext::new(),
             ));
         }
@@ -149,7 +149,7 @@ impl User {
             .all(|c| c.is_ascii_alphabetic() || c == '-')
         {
             return Err((
-                AppError::Validation("Invalid language code format".into()),
+                AppError::ValidationError("Invalid language code format".into()),
                 ErrorContext::new(),
             ));
         }
@@ -157,7 +157,7 @@ impl User {
         // Validate timezone format (basic check)
         if self.settings.timezone.trim().is_empty() {
             return Err((
-                AppError::Validation("Timezone cannot be empty".into()),
+                AppError::ValidationError("Timezone cannot be empty".into()),
                 ErrorContext::new(),
             ));
         }

@@ -70,7 +70,7 @@ impl DbConnection {
             Ok(connection) => Ok(Self { connection }),
             Err(e) => {
                 tracing::error!("Failed to connect to database: {}", e);
-                Err((AppError::Database(e.to_string()), Default::default()))
+                Err((AppError::from(e), Default::default()))
             },
         }
     }
@@ -156,7 +156,9 @@ mod tests {
         assert!(result.is_err());
         if let Err((error, _)) = result {
             match error {
-                AppError::Database(msg) => assert!(msg.contains("Mock connection error")),
+                AppError::DatabaseError(e) => {
+                    assert!(e.to_string().contains("Mock connection error"))
+                },
                 _ => panic!("Expected Database error"),
             }
         }

@@ -58,13 +58,13 @@ impl Tenant {
     fn validate_name(&self) -> AppResult<()> {
         if self.name.trim().is_empty() {
             return Err((
-                AppError::Validation("Tenant name cannot be empty".into()),
+                AppError::ValidationError("Tenant name cannot be empty".into()),
                 ErrorContext::new(),
             ));
         }
         if self.name.len() > 100 {
             return Err((
-                AppError::Validation("Tenant name cannot exceed 100 characters".into()),
+                AppError::ValidationError("Tenant name cannot exceed 100 characters".into()),
                 ErrorContext::new(),
             ));
         }
@@ -75,7 +75,7 @@ impl Tenant {
     fn validate_domain(&self) -> AppResult<()> {
         if !DOMAIN_REGEX.is_match(&self.domain) {
             return Err((
-                AppError::Validation("Invalid domain format".into()),
+                AppError::ValidationError("Invalid domain format".into()),
                 ErrorContext::new(),
             ));
         }
@@ -84,26 +84,23 @@ impl Tenant {
 
     // Validate tenant settings
     fn validate_settings(&self) -> AppResult<()> {
-        // Validate max users
         if self.settings.max_users < 1 {
             return Err((
-                AppError::Validation("Max users must be at least 1".into()),
+                AppError::ValidationError("Max users must be at least 1".into()),
                 ErrorContext::new(),
             ));
         }
 
-        // Validate storage limit (minimum 1MB)
         if self.settings.storage_limit < 1024 * 1024 {
             return Err((
-                AppError::Validation("Storage limit must be at least 1MB".into()),
+                AppError::ValidationError("Storage limit must be at least 1MB".into()),
                 ErrorContext::new(),
             ));
         }
 
-        // Validate API rate limit
         if self.settings.api_rate_limit < 1 {
             return Err((
-                AppError::Validation("API rate limit must be at least 1".into()),
+                AppError::ValidationError("API rate limit must be at least 1".into()),
                 ErrorContext::new(),
             ));
         }
@@ -122,6 +119,7 @@ impl Tenant {
     }
 
     // Simple active status validation
+    #[allow(dead_code)]
     pub fn validate_active(&self) -> AppResult<()> {
         if !self.is_active {
             return Err((
@@ -155,6 +153,7 @@ impl TenantContext {
     }
 }
 
+#[allow(dead_code)]
 #[async_trait::async_trait]
 pub trait TenantService: Send + Sync + 'static {
     async fn find_by_id(&self, id: &str) -> Result<Tenant, AppError>;

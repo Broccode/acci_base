@@ -117,6 +117,10 @@ jobs:
       - name: Install cross-compilation dependencies
         run: |
           sudo apt-get update
+          sudo dpkg --add-architecture ppc64el
+          sudo sh -c 'echo "deb [arch=ppc64el] http://ports.ubuntu.com/ubuntu-ports jammy main restricted universe multiverse" >> /etc/apt/sources.list'
+          sudo sh -c 'echo "deb [arch=ppc64el] http://ports.ubuntu.com/ubuntu-ports jammy-updates main restricted universe multiverse" >> /etc/apt/sources.list'
+          sudo apt-get update
           sudo apt-get install -y gcc-powerpc64le-linux-gnu cmake clang llvm-dev libclang-dev libc6-dev-ppc64el-cross
           sudo apt-get install -y libssl-dev:ppc64el
           cargo install --force --locked bindgen-cli

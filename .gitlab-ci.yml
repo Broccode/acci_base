@@ -80,13 +80,13 @@ cross-platform-test:
     - echo "deb [arch=ppc64el] http://ports.ubuntu.com/ubuntu-ports noble-backports main restricted universe multiverse" | tee -a /etc/apt/sources.list
     - apt-get update
     - apt-get install -y gcc-powerpc64le-linux-gnu cmake clang llvm-dev libclang-dev libc6-dev-ppc64el-cross
-    - apt-get install -y libssl-dev:ppc64el
+    - apt-get install -y libssl-dev:ppc64el pkg-config-powerpc64le-linux-gnu
     # Install Rust and required tools
     - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
     - source "$HOME/.cargo/env"
     - rustup target add $TARGET
-    - cargo install --force --locked bindgen-cli
-    # Create symlinks for OpenSSL libraries
+    - cargo install --force --locked --version "0.69.1" bindgen-cli
+    # Create symlinks and setup for OpenSSL libraries
     - |
       if [ "$TARGET" = "powerpc64le-unknown-linux-gnu" ]; then
         # Ensure OpenSSL directories exist
@@ -96,6 +96,8 @@ cross-platform-test:
         cp -r /usr/lib/powerpc64le-linux-gnu/libssl.* /usr/powerpc64le-linux-gnu/lib/
         cp -r /usr/lib/powerpc64le-linux-gnu/libcrypto.* /usr/powerpc64le-linux-gnu/lib/
         cp -r /usr/include/powerpc64le-linux-gnu/openssl/* /usr/powerpc64le-linux-gnu/include/openssl/
+        # Copy pkg-config files
+        cp -r /usr/lib/powerpc64le-linux-gnu/pkgconfig/* /usr/powerpc64le-linux-gnu/lib/pkgconfig/
         # Set environment variables
         export AWS_LC_SYS_EXTERNAL_BINDGEN=1
         export BINDGEN_EXTRA_CLANG_ARGS="--sysroot=/usr/powerpc64le-linux-gnu -target powerpc64le-unknown-linux-gnu"
@@ -103,9 +105,14 @@ cross-platform-test:
         export PKG_CONFIG_PATH=/usr/powerpc64le-linux-gnu/lib/pkgconfig
         export PKG_CONFIG_ALLOW_CROSS=1
         export AWS_LC_SYS_NO_ASM=1
+        export AWS_LC_SYS_BINDGEN_FEATURE=1
+        export AWS_LC_SYS_BINDGEN_PATH=/usr/local/cargo/bin/bindgen
+        export AWS_LC_SYS_INCLUDES="/usr/powerpc64le-linux-gnu/include"
+        export LIBCLANG_PATH="/usr/lib/llvm-14/lib"
         export OPENSSL_DIR=/usr/powerpc64le-linux-gnu
         export OPENSSL_INCLUDE_DIR=/usr/powerpc64le-linux-gnu/include
         export OPENSSL_LIB_DIR=/usr/powerpc64le-linux-gnu/lib
+        export PKG_CONFIG_SYSROOT_DIR=/usr/powerpc64le-linux-gnu
         # Configure cargo for PPC64LE cross-compilation
         mkdir -p .cargo
         echo '[target.powerpc64le-unknown-linux-gnu]' > .cargo/config.toml

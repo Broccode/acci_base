@@ -19,10 +19,14 @@ stages:
 # Rust Testing Stage
 rust-test:
   stage: test
-  image: rust:latest
+  image: ubuntu:22.04
   services:
     - docker:dind
   before_script:
+    - apt-get update
+    - apt-get install -y curl build-essential pkg-config libssl-dev
+    - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    - source "$HOME/.cargo/env"
     - rustup component add rustfmt clippy
     - cargo install cargo-criterion cargo-tarpaulin cargo-audit cargo-deny
   script:
@@ -52,7 +56,7 @@ rust-test:
 # Cross-Platform Testing
 cross-platform-test:
   stage: test
-  image: rust:latest
+  image: ubuntu:22.04
   services:
     - docker:dind
   parallel:
@@ -65,10 +69,10 @@ cross-platform-test:
     - rm -f /etc/apt/sources.list.d/*
     - truncate -s 0 /etc/apt/sources.list
     # Add repositories for amd64
-    - echo "deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse" | tee /etc/apt/sources.list
-    - echo "deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse" | tee -a /etc/apt/sources.list
-    - echo "deb http://archive.ubuntu.com/ubuntu jammy-security main restricted universe multiverse" | tee -a /etc/apt/sources.list
-    - echo "deb http://archive.ubuntu.com/ubuntu jammy-backports main restricted universe multiverse" | tee -a /etc/apt/sources.list
+    - echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse" | tee /etc/apt/sources.list
+    - echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse" | tee -a /etc/apt/sources.list
+    - echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy-security main restricted universe multiverse" | tee -a /etc/apt/sources.list
+    - echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy-backports main restricted universe multiverse" | tee -a /etc/apt/sources.list
     # Add repositories for ppc64el
     - echo "deb [arch=ppc64el] http://ports.ubuntu.com/ubuntu-ports jammy main restricted universe multiverse" | tee -a /etc/apt/sources.list
     - echo "deb [arch=ppc64el] http://ports.ubuntu.com/ubuntu-ports jammy-updates main restricted universe multiverse" | tee -a /etc/apt/sources.list

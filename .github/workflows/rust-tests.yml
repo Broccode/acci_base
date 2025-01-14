@@ -19,7 +19,7 @@ env:
 jobs:
   test:
     name: Test Suite
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
@@ -78,7 +78,7 @@ jobs:
 
   msrv:
     name: Check MSRV
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
@@ -98,7 +98,7 @@ jobs:
 
   cross-platform:
     name: Test on ${{ matrix.platform }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         platform: [
@@ -122,10 +122,10 @@ jobs:
           sudo rm -f /etc/apt/sources.list.d/*
           sudo truncate -s 0 /etc/apt/sources.list
           # Add repositories for amd64
-          echo "deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse" | sudo tee /etc/apt/sources.list
-          echo "deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
-          echo "deb http://archive.ubuntu.com/ubuntu jammy-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
-          echo "deb http://archive.ubuntu.com/ubuntu jammy-backports main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse" | sudo tee /etc/apt/sources.list
+          echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy-backports main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
           # Add repositories for ppc64el
           echo "deb [arch=ppc64el] http://ports.ubuntu.com/ubuntu-ports jammy main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
           echo "deb [arch=ppc64el] http://ports.ubuntu.com/ubuntu-ports jammy-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list

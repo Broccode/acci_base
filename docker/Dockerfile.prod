@@ -13,16 +13,13 @@ RUN dpkg --add-architecture ppc64el && \
     # Remove existing sources
     rm -f /etc/apt/sources.list.d/* && \
     truncate -s 0 /etc/apt/sources.list && \
-    # Add repositories for amd64
-    echo "deb [arch=amd64] http://deb.debian.org/debian bookworm main" > /etc/apt/sources.list && \
-    echo "deb [arch=amd64] http://deb.debian.org/debian-security bookworm-security main" >> /etc/apt/sources.list && \
-    echo "deb [arch=amd64] http://deb.debian.org/debian bookworm-updates main" >> /etc/apt/sources.list && \
-    # Add repositories for ppc64el
-    echo "deb [arch=ppc64el] http://deb.debian.org/debian bookworm main" >> /etc/apt/sources.list && \
-    echo "deb [arch=ppc64el] http://deb.debian.org/debian-security bookworm-security main" >> /etc/apt/sources.list && \
-    echo "deb [arch=ppc64el] http://deb.debian.org/debian bookworm-updates main" >> /etc/apt/sources.list && \
+    # Add repositories for both architectures
+    echo "deb [arch=amd64,ppc64el] http://deb.debian.org/debian bookworm main" > /etc/apt/sources.list && \
+    echo "deb [arch=amd64,ppc64el] http://deb.debian.org/debian-security bookworm-security main" >> /etc/apt/sources.list && \
+    echo "deb [arch=amd64,ppc64el] http://deb.debian.org/debian bookworm-updates main" >> /etc/apt/sources.list && \
     # Update and install packages
-    apt-get update && apt-get install -y \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
     pkg-config \
     libssl-dev \
     cmake \
@@ -31,7 +28,6 @@ RUN dpkg --add-architecture ppc64el && \
     libclang-dev \
     gcc-powerpc64le-linux-gnu \
     libc6-dev-ppc64el-cross \
-    gcc-x86-64-linux-gnu \
     gcc \
     g++ \
     musl-tools \

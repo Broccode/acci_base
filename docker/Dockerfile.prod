@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     musl-tools \
+    bindgen \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up cross-compilation environment
@@ -54,6 +55,8 @@ RUN case "$TARGETPLATFORM" in \
         export PKG_CONFIG_PATH=/usr/powerpc64le-linux-gnu/lib/pkgconfig \
         export PKG_CONFIG_ALLOW_CROSS=1 \
         export AWS_LC_SYS_NO_ASM=1 \
+        export AWS_LC_SYS_BINDGEN_FEATURE=1 \
+        export AWS_LC_SYS_BINDGEN_PATH=/usr/bin/bindgen \
         ;; \
     *)  TARGET="x86_64-unknown-linux-gnu" \
         ;; \

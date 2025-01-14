@@ -22,8 +22,10 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     musl-tools \
-    bindgen \
     && rm -rf /var/lib/apt/lists/*
+
+# Install latest bindgen
+RUN cargo install --locked --version "0.69.1" bindgen-cli
 
 # Set up cross-compilation environment
 ENV CC_x86_64_unknown_linux_gnu=x86_64-linux-gnu-gcc
@@ -56,7 +58,9 @@ RUN case "$TARGETPLATFORM" in \
         export PKG_CONFIG_ALLOW_CROSS=1 \
         export AWS_LC_SYS_NO_ASM=1 \
         export AWS_LC_SYS_BINDGEN_FEATURE=1 \
-        export AWS_LC_SYS_BINDGEN_PATH=/usr/bin/bindgen \
+        export AWS_LC_SYS_BINDGEN_PATH=/usr/local/cargo/bin/bindgen \
+        export AWS_LC_SYS_INCLUDES="/usr/powerpc64le-linux-gnu/include" \
+        export LIBCLANG_PATH="/usr/lib/llvm-14/lib" \
         ;; \
     *)  TARGET="x86_64-unknown-linux-gnu" \
         ;; \

@@ -9,7 +9,20 @@ FROM --platform=$BUILDPLATFORM chef AS builder
 ARG TARGETPLATFORM
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN dpkg --add-architecture ppc64el && \
+    # Remove existing sources
+    rm -f /etc/apt/sources.list.d/* && \
+    truncate -s 0 /etc/apt/sources.list && \
+    # Add repositories for amd64
+    echo "deb [arch=amd64] http://deb.debian.org/debian bookworm main" > /etc/apt/sources.list && \
+    echo "deb [arch=amd64] http://deb.debian.org/debian-security bookworm-security main" >> /etc/apt/sources.list && \
+    echo "deb [arch=amd64] http://deb.debian.org/debian bookworm-updates main" >> /etc/apt/sources.list && \
+    # Add repositories for ppc64el
+    echo "deb [arch=ppc64el] http://deb.debian.org/debian bookworm main" >> /etc/apt/sources.list && \
+    echo "deb [arch=ppc64el] http://deb.debian.org/debian-security bookworm-security main" >> /etc/apt/sources.list && \
+    echo "deb [arch=ppc64el] http://deb.debian.org/debian bookworm-updates main" >> /etc/apt/sources.list && \
+    # Update and install packages
+    apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
     cmake \
@@ -23,8 +36,17 @@ RUN apt-get update && apt-get install -y \
     g++ \
     musl-tools \
     libssl-dev:ppc64el \
-    pkg-config-powerpc64le-linux-gnu \
     && rm -rf /var/lib/apt/lists/*
+
+# Create directories for cross-compilation
+RUN mkdir -p /usr/powerpc64le-linux-gnu/lib/pkgconfig && \
+    mkdir -p /usr/powerpc64le-linux-gnu/include/openssl && \
+    # Copy OpenSSL files
+    cp -r /usr/lib/powerpc64le-linux-gnu/libssl.* /usr/powerpc64le-linux-gnu/lib/ && \
+    cp -r /usr/lib/powerpc64le-linux-gnu/libcrypto.* /usr/powerpc64le-linux-gnu/lib/ && \
+    cp -r /usr/include/powerpc64le-linux-gnu/openssl/* /usr/powerpc64le-linux-gnu/include/openssl/ && \
+    # Copy pkg-config files
+    cp -r /usr/lib/powerpc64le-linux-gnu/pkgconfig/* /usr/powerpc64le-linux-gnu/lib/pkgconfig/ || true
 
 # Install latest bindgen
 RUN cargo install --locked --version "0.69.1" bindgen-cli

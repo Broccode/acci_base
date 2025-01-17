@@ -30,10 +30,12 @@ use tracing::{debug, error, info, instrument, warn};
 
 use crate::common::{config::AppConfig, error::AppError};
 
+#[allow(dead_code)]
 const JWKS_CACHE_KEY: &str = "keycloak:jwks";
 
 /// State for the authentication middleware
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct AuthState {
     pub config: Arc<AppConfig>,
     pub oauth_client: Arc<BasicClient>,
@@ -84,6 +86,7 @@ pub struct JwksKey {
 
 /// User information extracted from the validated token
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct UserInfo {
     /// Subject identifier
     pub sub: String,
@@ -97,6 +100,7 @@ pub struct UserInfo {
     pub tenant_id: Option<String>,
 }
 
+#[allow(dead_code)]
 impl AuthState {
     /// Creates a new instance of AuthState
     ///
@@ -186,11 +190,12 @@ impl AuthState {
             AppError::AuthenticationError(format!("Failed to serialize JWKS: {}", e))
         })?;
 
-        let ttl = u64::try_from(self.config.keycloak.public_key_cache_ttl)
-            .map_err(|e| AppError::AuthenticationError(format!("Invalid TTL value: {}", e)))?;
-
         let _: () = redis_conn
-            .set_ex(JWKS_CACHE_KEY, jwks_str, ttl)
+            .set_ex(
+                JWKS_CACHE_KEY,
+                jwks_str,
+                self.config.keycloak.public_key_cache_ttl,
+            )
             .await
             .map_err(|e| AppError::AuthenticationError(format!("Failed to cache JWKS: {}", e)))?;
 
@@ -206,12 +211,9 @@ impl AuthState {
 
         let key = if let Some(kid) = header.kid {
             // Find the key with matching kid
-            jwks.keys
-                .iter()
-                .find(|k| k.kid == kid)
-                .ok_or_else(|| {
-                    AppError::AuthenticationError(format!("No key found with kid: {}", kid))
-                })?
+            jwks.keys.iter().find(|k| k.kid == kid).ok_or_else(|| {
+                AppError::AuthenticationError(format!("No key found with kid: {}", kid))
+            })?
         } else {
             // Fallback to first key if no kid in token
             jwks.keys
@@ -238,24 +240,25 @@ impl AuthState {
         // Test mode with simplified validation
         if !self.config.keycloak.verify_token {
             warn!("Running in test mode - token verification is disabled!");
-            
+
             // Use a constant test key for consistent validation
             const TEST_KEY: &[u8] = b"acci_test_key_do_not_use_in_production_2024";
             let key = DecodingKey::from_secret(TEST_KEY);
-            
+
             // Configure validation for test environment
             let mut validation = Validation::new(Algorithm::HS256);
-            validation.validate_exp = false;
+            validation.validate_exp = true; // Check expiration even in test mode
             validation.validate_nbf = false;
             validation.validate_aud = false;
-            validation.validate_iss = false;
             validation.required_spec_claims.clear();
-            
+            validation.set_issuer(&[""]); // Empty issuer for test mode
+            validation.leeway = 0; // No leeway for expiration in tests
+
             // Validate the token structure
             let token_data = decode::<Claims>(token, &key, &validation).map_err(|e| {
                 AppError::AuthenticationError(format!("Test token validation failed: {}", e))
             })?;
-            
+
             debug!("Test mode: Successfully validated token structure");
 
             let tenant_id = token_data.claims.realm_access.as_ref().and_then(|access| {
@@ -354,7 +357,8 @@ impl AuthState {
     /// * `duration` - Duration of the authentication process
     async fn record_auth_metrics(&self, success: bool, duration: std::time::Duration) {
         let status = if success { "success" } else { "failure" };
-        counter!("auth_attempts_total", "status" => status.to_string());
+        let counter = counter!("auth_attempts_total", "status" => status.to_string());
+        counter.increment(1);
         let hist = histogram!("auth_duration_seconds");
         hist.record(duration.as_secs_f64());
         debug!(
@@ -435,11 +439,9 @@ async fn process_auth(
         .get("Authorization")
         .and_then(|header| header.to_str().ok())
         .and_then(|header| {
-            if header.starts_with("Bearer ") {
-                Some(header[7..].to_string())
-            } else {
-                None
-            }
+            header
+                .strip_prefix("Bearer ")
+                .map(|token| token.to_string())
         });
 
     let token = auth_header.ok_or_else(|| {

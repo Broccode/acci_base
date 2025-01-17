@@ -105,7 +105,8 @@ async fn create_test_state() -> (AuthState, Arc<AppConfig>) {
         ..Default::default()
     });
 
-    let redis_client = MockRedisClient::open("redis://dummy").expect("Failed to create mock Redis client");
+    let redis_client =
+        MockRedisClient::open("redis://dummy").expect("Failed to create mock Redis client");
     let state = AuthState::new(config.clone(), Arc::new(redis_client.into()))
         .await
         .expect("Failed to create auth state");
@@ -127,16 +128,12 @@ fn create_test_claims(roles: Vec<String>) -> Claims {
 // Helper function to create test token
 fn create_test_token(claims: &Claims) -> String {
     const TEST_KEY: &[u8] = b"acci_test_key_do_not_use_in_production_2024";
-    
+
     let mut header = Header::default();
     header.kid = Some("test_key_id".to_string());
-    
-    encode(
-        &header,
-        claims,
-        &EncodingKey::from_secret(TEST_KEY),
-    )
-    .expect("Failed to create test token")
+
+    encode(&header, claims, &EncodingKey::from_secret(TEST_KEY))
+        .expect("Failed to create test token")
 }
 
 async fn test_handler(Extension(user_info): Extension<UserInfo>) -> Response {
@@ -149,7 +146,7 @@ async fn test_handler(Extension(user_info): Extension<UserInfo>) -> Response {
 #[test]
 async fn test_valid_token() {
     let (state, _) = create_test_state().await;
-    
+
     let claims = create_test_claims(vec!["user".to_string()]);
     let token = create_test_token(&claims);
 
@@ -193,10 +190,7 @@ async fn test_missing_token() {
         .route("/test", get(test_handler))
         .layer(axum::middleware::from_fn_with_state(state, auth_middleware));
 
-    let req = Request::builder()
-        .uri("/test")
-        .body(Body::empty())
-        .unwrap();
+    let req = Request::builder().uri("/test").body(Body::empty()).unwrap();
 
     let response = app.oneshot(req).await.unwrap();
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
@@ -205,14 +199,14 @@ async fn test_missing_token() {
 #[test]
 async fn test_tenant_access() {
     let (state, _) = create_test_state().await;
-    
+
     // Create claims with tenant role
     let claims = create_test_claims(vec!["tenant_123".to_string(), "user".to_string()]);
     let token = create_test_token(&claims);
 
-    let app = Router::new()
-        .route("/test", get(test_handler))
-        .layer(axum::middleware::from_fn_with_state(state.clone(), auth_middleware));
+    let app = Router::new().route("/test", get(test_handler)).layer(
+        axum::middleware::from_fn_with_state(state.clone(), auth_middleware),
+    );
 
     // Test request with matching tenant
     let req = Request::builder()
@@ -233,7 +227,7 @@ async fn test_tenant_access() {
 #[test]
 async fn test_role_verification() {
     let (state, _) = create_test_state().await;
-    
+
     // Create claims with specific roles
     let claims = create_test_claims(vec!["admin".to_string(), "user".to_string()]);
     let token = create_test_token(&claims);
@@ -248,11 +242,11 @@ async fn test_role_verification() {
 #[test]
 async fn test_expired_token() {
     let (state, _) = create_test_state().await;
-    
+
     // Create claims with expired timestamp
     let mut claims = create_test_claims(vec!["user".to_string()]);
     claims.exp = (chrono::Utc::now() - chrono::Duration::hours(1)).timestamp() as usize;
-    
+
     let token = create_test_token(&claims);
 
     let app = Router::new()

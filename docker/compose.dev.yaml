@@ -31,35 +31,42 @@ services:
         condition: service_healthy
 
   keycloak:
-    image: quay.io/keycloak/keycloak:23.0
+    image: quay.io/keycloak/keycloak:26.0.8
     command: start-dev
     environment:
       - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN:-admin}
       - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:-admin}
       - KC_DB=postgres
-      - KC_DB_URL=jdbc:postgresql://db:5432/${KEYCLOAK_DB_NAME:-keycloak}
+      - KC_DB_URL=jdbc:postgresql://db:5432/${KEYCLOAK_DB_NAME:-acci}
       - KC_DB_USERNAME=${DATABASE_USER:-acci}
-      - KC_DB_PASSWORD=${DATABASE_PASSWORD:-acci_dev_password}
+      - KC_DB_PASSWORD=${DATABASE_PASSWORD:-acci}
       - KC_HOSTNAME_STRICT=false
       - KC_HTTP_RELATIVE_PATH=/auth
+      - KC_HEALTH_ENABLED=true
+      - KC_HEALTH_CHECK_URI=/auth/health/ready
     ports:
       - "${KEYCLOAK_PORT:-8080}:8080"
+      - 9000:9000
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/auth/health/ready"]
-      interval: 10s
+      test:
+      - "CMD-SHELL"
+      - |
+        exec 3<>/dev/tcp/localhost/9000 &&
+        echo -e 'GET /auth/health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+        cat <&3 | grep -q '200 OK'
+      interval: 30s
       timeout: 5s
-      retries: 5
-      start_period: 30s
+      retries: 20
 
   db:
     image: postgres:16-alpine
     environment:
-      - POSTGRES_DB=${DATABASE_NAME:-acci_dev}
+      - POSTGRES_DB=${DATABASE_NAME:-acci}
       - POSTGRES_USER=${DATABASE_USER:-acci}
-      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-acci_dev_password}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-acci}
     ports:
       - "${DATABASE_PORT:-5432}:5432"
     volumes:

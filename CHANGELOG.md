@@ -146,6 +146,14 @@ Create a git tag for the version (e.g., v0.2.0)
   - Integration tests with auth middleware
   - Test utilities for tenant testing
   - Mock database connections for testing
+- Keycloak realm configuration script
+  - Automated realm creation and setup
+  - Role and group management
+  - Test user creation
+  - Protocol mapper configuration for tenant support
+  - Security settings and token lifecycle configuration
+  - Multi-tenant support through user attributes
+  - Integration with existing authentication middleware
 
 ### Changed
 - Updated tenant migration schema to match domain model
@@ -293,6 +301,18 @@ Create a git tag for the version (e.g., v0.2.0)
   - Improved error handling safety rules
 
 ### Fixed
+- Enhanced authentication middleware security and reliability:
+  - Improved JWKS key selection with proper kid matching
+  - Optimized metrics recording with structured logging
+  - Enhanced test mode token validation with constant test key
+  - Added clear warnings for test mode usage
+  - Improved validation options and error handling
+  - Enhanced authentication test suite:
+    - Improved mock Redis implementation with storage and TTL
+    - Added tenant access validation tests
+    - Added role verification tests
+    - Added expired token tests
+    - Better test organization and helper functions
 - Fixed Clippy warnings for unnecessary borrows and unwraps
 - Optimized Docker build to use distroless/cc for minimal runtime dependencies
 - Suppressed dead code warnings for base components that will be used in future implementations

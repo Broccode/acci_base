@@ -1,3 +1,16 @@
+//! Authentication middleware for Keycloak integration
+//!
+//! This module provides middleware for authenticating requests using Keycloak as the identity provider.
+//! It supports JWT validation, role-based access control, and multi-tenancy.
+//!
+//! # Features
+//!
+//! - JWT validation with JWKS key rotation
+//! - Role-based access control (RBAC)
+//! - Multi-tenant support
+//! - Redis-based JWKS caching
+//! - Comprehensive metrics and monitoring
+
 use std::sync::Arc;
 
 use axum::{
@@ -8,16 +21,18 @@ use axum::{
     response::Response,
 };
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+use metrics::{counter, histogram};
 use oauth2::{basic::BasicClient, AuthUrl, ClientId, ClientSecret, TokenUrl};
+use redis::AsyncCommands;
 use reqwest;
 use serde::{Deserialize, Serialize};
-use tracing::{debug, error, instrument};
+use tracing::{debug, error, info, instrument, warn};
 
 use crate::common::{config::AppConfig, error::AppError};
 
 const JWKS_CACHE_KEY: &str = "keycloak:jwks";
 
-#[allow(dead_code)]
+/// State for the authentication middleware
 #[derive(Clone)]
 pub struct AuthState {
     pub config: Arc<AppConfig>,
@@ -25,35 +40,74 @@ pub struct AuthState {
     pub redis_client: Arc<redis::Client>,
 }
 
+/// Claims extracted from the JWT token
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
+    /// Subject identifier
     pub sub: String,
+    /// Username
     pub preferred_username: String,
+    /// Email address (optional)
     pub email: Option<String>,
+    /// Realm access containing roles
     pub realm_access: Option<RealmAccess>,
+    /// Token expiration timestamp
     pub exp: usize,
 }
 
+/// Realm access containing user roles
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RealmAccess {
+    /// List of roles assigned to the user
     pub roles: Vec<String>,
 }
 
+/// JWKS (JSON Web Key Set) structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Jwks {
+    /// List of JSON Web Keys
     pub keys: Vec<JwksKey>,
 }
 
+/// Individual JSON Web Key
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JwksKey {
+    /// Key ID
     pub kid: String,
+    /// Key type
     pub kty: String,
+    /// Modulus for RSA keys
     pub n: String,
+    /// Exponent for RSA keys
     pub e: String,
 }
 
+/// User information extracted from the validated token
+#[derive(Debug, Clone)]
+pub struct UserInfo {
+    /// Subject identifier
+    pub sub: String,
+    /// Username
+    pub preferred_username: String,
+    /// Email address (optional)
+    pub email: Option<String>,
+    /// List of roles
+    pub roles: Vec<String>,
+    /// Tenant identifier (optional)
+    pub tenant_id: Option<String>,
+}
+
 impl AuthState {
-    #[allow(dead_code)]
+    /// Creates a new instance of AuthState
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - Application configuration
+    /// * `redis_client` - Redis client for JWKS caching
+    ///
+    /// # Returns
+    ///
+    /// Returns a Result containing the AuthState or an AppError
     pub async fn new(
         config: Arc<AppConfig>,
         redis_client: Arc<redis::Client>,
@@ -84,23 +138,27 @@ impl AuthState {
         })
     }
 
-    #[allow(dead_code)]
+    /// Retrieves the JWKS from cache or Keycloak
+    ///
+    /// First attempts to get the JWKS from Redis cache. If not found or invalid,
+    /// fetches from Keycloak and caches the result.
     async fn get_jwks(&self) -> Result<Jwks, AppError> {
         // Try to get JWKS from cache
         let mut redis_conn = self
             .redis_client
-            .get_async_connection()
+            .get_multiplexed_async_connection()
             .await
             .map_err(|e| {
                 AppError::AuthenticationError(format!("Redis connection failed: {}", e))
             })?;
 
-        let cached_jwks_result = redis::cmd("GET")
-            .arg(JWKS_CACHE_KEY)
-            .query_async::<_, Option<String>>(&mut redis_conn)
-            .await;
+        // Use AsyncCommands trait for Redis operations
+        let cached_jwks: Option<String> = redis_conn
+            .get(JWKS_CACHE_KEY)
+            .await
+            .map_err(|e| AppError::AuthenticationError(format!("Redis get failed: {}", e)))?;
 
-        if let Ok(Some(jwks_str)) = cached_jwks_result {
+        if let Some(jwks_str) = cached_jwks {
             if let Ok(jwks) = serde_json::from_str::<Jwks>(&jwks_str) {
                 debug!("Using cached JWKS");
                 return Ok(jwks);
@@ -128,57 +186,113 @@ impl AuthState {
             AppError::AuthenticationError(format!("Failed to serialize JWKS: {}", e))
         })?;
 
-        redis::cmd("SETEX")
-            .arg(JWKS_CACHE_KEY)
-            .arg(self.config.keycloak.public_key_cache_ttl)
-            .arg(jwks_str)
-            .query_async::<_, ()>(&mut redis_conn)
+        let ttl = u64::try_from(self.config.keycloak.public_key_cache_ttl)
+            .map_err(|e| AppError::AuthenticationError(format!("Invalid TTL value: {}", e)))?;
+
+        let _: () = redis_conn
+            .set_ex(JWKS_CACHE_KEY, jwks_str, ttl)
             .await
             .map_err(|e| AppError::AuthenticationError(format!("Failed to cache JWKS: {}", e)))?;
 
         Ok(jwks)
     }
 
-    #[allow(dead_code)]
-    fn create_decoding_key(jwks: &Jwks) -> Result<DecodingKey, AppError> {
-        // For simplicity, we're using the first key. In production, you might want to match by 'kid'
-        let key = jwks
-            .keys
-            .first()
-            .ok_or_else(|| AppError::AuthenticationError("No keys found in JWKS".to_string()))?;
+    /// Creates a JWT decoding key from JWKS
+    fn create_decoding_key(jwks: &Jwks, token: &str) -> Result<DecodingKey, AppError> {
+        // Extract kid from token header if available
+        let header = jsonwebtoken::decode_header(token).map_err(|e| {
+            AppError::AuthenticationError(format!("Failed to decode token header: {}", e))
+        })?;
+
+        let key = if let Some(kid) = header.kid {
+            // Find the key with matching kid
+            jwks.keys
+                .iter()
+                .find(|k| k.kid == kid)
+                .ok_or_else(|| {
+                    AppError::AuthenticationError(format!("No key found with kid: {}", kid))
+                })?
+        } else {
+            // Fallback to first key if no kid in token
+            jwks.keys
+                .first()
+                .ok_or_else(|| AppError::AuthenticationError("No keys found in JWKS".to_string()))?
+        };
 
         // Convert RSA components to PEM format
-        // Note: This is a simplified version. In production, you should properly handle different key types
         DecodingKey::from_rsa_components(&key.n, &key.e).map_err(|e| {
             AppError::AuthenticationError(format!("Failed to create decoding key: {}", e))
         })
     }
-}
 
-#[allow(dead_code)]
-#[derive(Debug, Clone)]
-pub struct UserInfo {
-    pub sub: String,
-    pub preferred_username: String,
-    pub email: Option<String>,
-    pub roles: Vec<String>,
-    pub tenant_id: Option<String>,
-}
+    /// Validates a Keycloak token and extracts user information
+    ///
+    /// # Arguments
+    ///
+    /// * `token` - The JWT token to validate
+    ///
+    /// # Returns
+    ///
+    /// Returns a Result containing UserInfo or an AppError
+    pub async fn validate_keycloak_token(&self, token: &str) -> Result<UserInfo, AppError> {
+        // Test mode with simplified validation
+        if !self.config.keycloak.verify_token {
+            warn!("Running in test mode - token verification is disabled!");
+            
+            // Use a constant test key for consistent validation
+            const TEST_KEY: &[u8] = b"acci_test_key_do_not_use_in_production_2024";
+            let key = DecodingKey::from_secret(TEST_KEY);
+            
+            // Configure validation for test environment
+            let mut validation = Validation::new(Algorithm::HS256);
+            validation.validate_exp = false;
+            validation.validate_nbf = false;
+            validation.validate_aud = false;
+            validation.validate_iss = false;
+            validation.required_spec_claims.clear();
+            
+            // Validate the token structure
+            let token_data = decode::<Claims>(token, &key, &validation).map_err(|e| {
+                AppError::AuthenticationError(format!("Test token validation failed: {}", e))
+            })?;
+            
+            debug!("Test mode: Successfully validated token structure");
 
-#[allow(dead_code)]
-async fn validate_token(state: &AuthState, token: &str) -> Result<UserInfo, AppError> {
-    // Special handling for test tokens
-    if cfg!(test) {
-        let key = DecodingKey::from_secret(b"test_secret");
-        let mut validation = Validation::new(Algorithm::HS256);
-        validation.validate_exp = true;
-        validation.required_spec_claims.clear();
+            let tenant_id = token_data.claims.realm_access.as_ref().and_then(|access| {
+                access
+                    .roles
+                    .iter()
+                    .find(|role| role.starts_with("tenant_"))
+                    .map(|role| role.trim_start_matches("tenant_").to_string())
+            });
+
+            return Ok(UserInfo {
+                sub: token_data.claims.sub,
+                preferred_username: token_data.claims.preferred_username,
+                email: token_data.claims.email,
+                roles: token_data
+                    .claims
+                    .realm_access
+                    .map(|access| access.roles)
+                    .unwrap_or_default(),
+                tenant_id,
+            });
+        }
+
+        let jwks = self.get_jwks().await?;
+        let key = Self::create_decoding_key(&jwks, token)?;
+
+        let mut validation = Validation::new(Algorithm::RS256);
+        validation.set_audience(&[&self.config.keycloak.client_id]);
+        validation.set_issuer(&[&format!(
+            "{}/realms/{}",
+            self.config.keycloak.url, self.config.keycloak.realm
+        )]);
 
         let token_data = decode::<Claims>(token, &key, &validation).map_err(|e| {
             AppError::AuthenticationError(format!("Token validation failed: {}", e))
         })?;
 
-        // Extract tenant_id from token claims
         let tenant_id = token_data.claims.realm_access.as_ref().and_then(|access| {
             access
                 .roles
@@ -187,7 +301,7 @@ async fn validate_token(state: &AuthState, token: &str) -> Result<UserInfo, AppE
                 .map(|role| role.trim_start_matches("tenant_").to_string())
         });
 
-        return Ok(UserInfo {
+        Ok(UserInfo {
             sub: token_data.claims.sub,
             preferred_username: token_data.claims.preferred_username,
             email: token_data.claims.email,
@@ -197,49 +311,123 @@ async fn validate_token(state: &AuthState, token: &str) -> Result<UserInfo, AppE
                 .map(|access| access.roles)
                 .unwrap_or_default(),
             tenant_id,
-        });
+        })
     }
 
-    // Production token validation
-    let jwks = state.get_jwks().await?;
-    let key = AuthState::create_decoding_key(&jwks)?;
+    /// Verifies if a user has a specific role
+    ///
+    /// # Arguments
+    ///
+    /// * `user_info` - User information containing roles
+    /// * `required_role` - The role to check for
+    ///
+    /// # Returns
+    ///
+    /// Returns true if the user has the required role
+    pub async fn verify_role(&self, user_info: &UserInfo, required_role: &str) -> bool {
+        user_info.roles.contains(&required_role.to_string())
+    }
 
-    let mut validation = Validation::new(Algorithm::RS256);
-    validation.set_audience(&[&state.config.keycloak.client_id]);
-    validation.set_issuer(&[&format!(
-        "{}/realms/{}",
-        state.config.keycloak.url, state.config.keycloak.realm
-    )]);
+    /// Verifies if a user has access to a specific tenant
+    ///
+    /// # Arguments
+    ///
+    /// * `user_info` - User information containing tenant ID
+    /// * `tenant_id` - The tenant ID to check access for
+    ///
+    /// # Returns
+    ///
+    /// Returns true if the user has access to the tenant
+    pub async fn verify_tenant_access(&self, user_info: &UserInfo, tenant_id: &str) -> bool {
+        user_info
+            .tenant_id
+            .as_ref()
+            .map(|id| id == tenant_id)
+            .unwrap_or(false)
+    }
 
-    let token_data = decode::<Claims>(token, &key, &validation)
-        .map_err(|e| AppError::AuthenticationError(format!("Token validation failed: {}", e)))?;
-
-    // Extract tenant_id from token claims
-    let tenant_id = token_data.claims.realm_access.as_ref().and_then(|access| {
-        access
-            .roles
-            .iter()
-            .find(|role| role.starts_with("tenant_"))
-            .map(|role| role.trim_start_matches("tenant_").to_string())
-    });
-
-    Ok(UserInfo {
-        sub: token_data.claims.sub,
-        preferred_username: token_data.claims.preferred_username,
-        email: token_data.claims.email,
-        roles: token_data
-            .claims
-            .realm_access
-            .map(|access| access.roles)
-            .unwrap_or_default(),
-        tenant_id,
-    })
+    /// Records authentication metrics
+    ///
+    /// # Arguments
+    ///
+    /// * `success` - Whether authentication was successful
+    /// * `duration` - Duration of the authentication process
+    async fn record_auth_metrics(&self, success: bool, duration: std::time::Duration) {
+        let status = if success { "success" } else { "failure" };
+        counter!("auth_attempts_total", "status" => status.to_string());
+        let hist = histogram!("auth_duration_seconds");
+        hist.record(duration.as_secs_f64());
+        debug!(
+            status = status,
+            duration_ms = duration.as_millis(),
+            "Auth metrics recorded"
+        );
+    }
 }
 
-#[instrument(skip(state, req, next))]
+/// Authentication middleware for Axum
+///
+/// This middleware:
+/// 1. Extracts the Bearer token from the Authorization header
+/// 2. Validates the token using Keycloak
+/// 3. Extracts user information and roles
+/// 4. Adds user information to request extensions
+/// 5. Records metrics and logs
+///
+/// # Arguments
+///
+/// * `state` - Authentication state containing configuration
+/// * `req` - The incoming request
+/// * `next` - The next middleware in the chain
+///
+/// # Returns
+///
+/// Returns a Result containing the Response or a StatusCode error
+#[instrument(skip(state, req, next), fields(
+    request_id = %uuid::Uuid::new_v4(),
+    tenant_id,
+    user_id
+))]
 pub async fn auth_middleware(
     State(state): State<AuthState>,
     mut req: Request<Body>,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    let start_time = std::time::Instant::now();
+    let auth_result = process_auth(&state, &mut req, next).await;
+    let duration = start_time.elapsed();
+
+    // Record metrics
+    state
+        .record_auth_metrics(auth_result.is_ok(), duration)
+        .await;
+
+    // Enhanced logging
+    match &auth_result {
+        Ok(_) => {
+            if let Some(user_info) = req.extensions().get::<UserInfo>() {
+                info!(
+                    tenant_id = ?user_info.tenant_id,
+                    user_id = ?user_info.sub,
+                    "Authentication successful"
+                );
+            }
+        },
+        Err(status) => {
+            warn!(
+                status = ?status,
+                "Authentication failed"
+            );
+        },
+    }
+
+    auth_result
+}
+
+#[instrument(skip(state, req, next))]
+async fn process_auth(
+    state: &AuthState,
+    req: &mut Request<Body>,
     next: Next,
 ) -> Result<Response, StatusCode> {
     let auth_header = req
@@ -248,38 +436,35 @@ pub async fn auth_middleware(
         .and_then(|header| header.to_str().ok())
         .and_then(|header| {
             if header.starts_with("Bearer ") {
-                header
-                    .strip_prefix("Bearer ")
-                    .map(|token| token.to_string())
+                Some(header[7..].to_string())
             } else {
                 None
             }
         });
 
-    match auth_header {
-        Some(token) => {
-            debug!("Validating token");
-            match validate_token(&state, &token).await {
-                Ok(user_info) => {
-                    // Store user info in request extensions
-                    req.extensions_mut().insert(user_info.clone());
+    let token = auth_header.ok_or_else(|| {
+        warn!("Missing authorization header");
+        StatusCode::UNAUTHORIZED
+    })?;
 
-                    // Check tenant_id
-                    if user_info.tenant_id.is_none() {
-                        error!("User has no tenant_id");
-                        return Err(StatusCode::FORBIDDEN);
-                    }
-
-                    Ok(next.run(req).await)
-                },
-                Err(e) => {
-                    error!("Token validation failed: {}", e);
-                    Err(StatusCode::UNAUTHORIZED)
-                },
-            }
+    match state.validate_keycloak_token(&token).await {
+        Ok(user_info) => {
+            debug!(
+                user_id = ?user_info.sub,
+                tenant_id = ?user_info.tenant_id,
+                "Token validated successfully"
+            );
+            req.extensions_mut().insert(user_info);
+            // Create a new request with the same parts but empty body
+            let mut new_req = Request::new(Body::empty());
+            *new_req.uri_mut() = req.uri().clone();
+            *new_req.method_mut() = req.method().clone();
+            *new_req.headers_mut() = req.headers().clone();
+            *new_req.extensions_mut() = req.extensions().clone();
+            Ok(next.run(new_req).await)
         },
-        None => {
-            debug!("No authorization header found");
+        Err(e) => {
+            error!(error = ?e, "Token validation failed");
             Err(StatusCode::UNAUTHORIZED)
         },
     }

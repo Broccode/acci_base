@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use axum::{
     body::Body,
@@ -19,67 +20,69 @@ use crate::common::{
     middleware::auth::{auth_middleware, AuthState, Claims, RealmAccess, UserInfo},
 };
 
-// Mock Redis client for testing with actual storage
+#[allow(dead_code)]
 #[derive(Clone)]
 struct MockRedisClient {
-    storage: Arc<Mutex<HashMap<String, (String, std::time::Instant, u64)>>>,
+    storage: Arc<Mutex<HashMap<String, (String, Instant, u64)>>>,
 }
 
 impl MockRedisClient {
-    fn open(_url: &str) -> redis::RedisResult<Self> {
-        Ok(Self {
+    #[allow(dead_code)]
+    fn new() -> Self {
+        Self {
             storage: Arc::new(Mutex::new(HashMap::new())),
-        })
+        }
     }
 
+    #[allow(dead_code)]
+    fn open(_url: &str) -> redis::RedisResult<Self> {
+        Ok(Self::new())
+    }
+
+    #[allow(dead_code)]
     async fn get_async_connection(&self) -> redis::RedisResult<MockRedisConnection> {
         Ok(MockRedisConnection {
-            storage: self.storage.clone(),
+            storage: Arc::clone(&self.storage),
         })
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone)]
 struct MockRedisConnection {
-    storage: Arc<Mutex<HashMap<String, (String, std::time::Instant, u64)>>>,
+    storage: Arc<Mutex<HashMap<String, (String, Instant, u64)>>>,
 }
 
 impl MockRedisConnection {
+    #[allow(dead_code)]
     async fn get<K: ToString>(&mut self, key: K) -> redis::RedisResult<Option<String>> {
-        let storage = self.storage.lock().map_err(|e| {
-            redis::RedisError::from((
-                redis::ErrorKind::IoError,
-                "Failed to acquire lock",
-                e.to_string(),
-            ))
-        })?;
+        let storage = self.storage.lock().unwrap();
+        let key = key.to_string();
 
-        if let Some((value, timestamp, ttl)) = storage.get(&key.to_string()) {
-            if timestamp.elapsed().as_secs() < *ttl {
-                return Ok(Some(value.clone()));
+        if let Some((value, expiry, _)) = storage.get(&key) {
+            if expiry > &Instant::now() {
+                Ok(Some(value.clone()))
+            } else {
+                Ok(None)
             }
+        } else {
+            Ok(None)
         }
-        Ok(None)
     }
 
+    #[allow(dead_code)]
     async fn set_ex<K: ToString, V: ToString>(
         &mut self,
         key: K,
         value: V,
-        ttl: u64,
+        seconds: u64,
     ) -> redis::RedisResult<()> {
-        let mut storage = self.storage.lock().map_err(|e| {
-            redis::RedisError::from((
-                redis::ErrorKind::IoError,
-                "Failed to acquire lock",
-                e.to_string(),
-            ))
-        })?;
+        let mut storage = self.storage.lock().unwrap();
+        let key = key.to_string();
+        let value = value.to_string();
+        let expiry = Instant::now() + std::time::Duration::from_secs(seconds);
 
-        storage.insert(
-            key.to_string(),
-            (value.to_string(), std::time::Instant::now(), ttl),
-        );
+        storage.insert(key, (value, expiry, seconds));
         Ok(())
     }
 }

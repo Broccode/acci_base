@@ -85,7 +85,7 @@ impl MockRedisConnection {
 }
 
 impl From<MockRedisClient> for RedisClient {
-    fn from(mock: MockRedisClient) -> Self {
+    fn from(_mock: MockRedisClient) -> Self {
         // In tests, we'll use the mock directly instead of converting
         RedisClient::open("redis://dummy").expect("Failed to create dummy Redis client")
     }
@@ -136,7 +136,7 @@ fn create_test_token(claims: &Claims) -> String {
         .expect("Failed to create test token")
 }
 
-async fn test_handler(Extension(user_info): Extension<UserInfo>) -> Response {
+async fn test_handler(Extension(_user_info): Extension<UserInfo>) -> Response {
     Response::builder()
         .status(StatusCode::OK)
         .body(Body::empty())

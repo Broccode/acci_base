@@ -16,7 +16,7 @@ tower-http = { version = "0.6.2", features = ["trace", "cors", "compression-full
 async-trait = "0.1.85"
 
 # Database
-sea-orm = { version = "1.1.4", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros", "with-chrono"] }
+sea-orm = { version = "1.1.4", features = ["runtime-tokio-rustls", "sqlx-postgres", "mock", "macros"] }
 sqlx = { version = "0.8.3", features = ["runtime-tokio-rustls"] }
 
 # GraphQL

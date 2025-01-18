@@ -125,13 +125,13 @@ impl AuthState {
                 "{}/realms/{}/protocol/openid-connect/auth",
                 keycloak_config.url, keycloak_config.realm
             ))
-            .map_err(|e| AppError::AuthenticationError(e.to_string()))?,
+            .map_err(|e| AppError::authentication(e.to_string()))?,
             Some(
                 TokenUrl::new(format!(
                     "{}/realms/{}/protocol/openid-connect/token",
                     keycloak_config.url, keycloak_config.realm
                 ))
-                .map_err(|e| AppError::AuthenticationError(e.to_string()))?,
+                .map_err(|e| AppError::authentication(e.to_string()))?,
             ),
         );
 
@@ -152,15 +152,13 @@ impl AuthState {
             .redis_client
             .get_multiplexed_async_connection()
             .await
-            .map_err(|e| {
-                AppError::AuthenticationError(format!("Redis connection failed: {}", e))
-            })?;
+            .map_err(|e| AppError::authentication(format!("Redis connection failed: {}", e)))?;
 
         // Use AsyncCommands trait for Redis operations
         let cached_jwks: Option<String> = redis_conn
             .get(JWKS_CACHE_KEY)
             .await
-            .map_err(|e| AppError::AuthenticationError(format!("Redis get failed: {}", e)))?;
+            .map_err(|e| AppError::authentication(format!("Redis get failed: {}", e)))?;
 
         if let Some(jwks_str) = cached_jwks {
             if let Ok(jwks) = serde_json::from_str::<Jwks>(&jwks_str) {
@@ -180,15 +178,14 @@ impl AuthState {
             .get(&jwks_url)
             .send()
             .await
-            .map_err(|e| AppError::AuthenticationError(format!("Failed to fetch JWKS: {}", e)))?
+            .map_err(|e| AppError::authentication(format!("Failed to fetch JWKS: {}", e)))?
             .json()
             .await
-            .map_err(|e| AppError::AuthenticationError(format!("Failed to parse JWKS: {}", e)))?;
+            .map_err(|e| AppError::authentication(format!("Failed to parse JWKS: {}", e)))?;
 
         // Cache the JWKS
-        let jwks_str = serde_json::to_string(&jwks).map_err(|e| {
-            AppError::AuthenticationError(format!("Failed to serialize JWKS: {}", e))
-        })?;
+        let jwks_str = serde_json::to_string(&jwks)
+            .map_err(|e| AppError::authentication(format!("Failed to serialize JWKS: {}", e)))?;
 
         let _: () = redis_conn
             .set_ex(
@@ -197,7 +194,7 @@ impl AuthState {
                 self.config.keycloak.public_key_cache_ttl,
             )
             .await
-            .map_err(|e| AppError::AuthenticationError(format!("Failed to cache JWKS: {}", e)))?;
+            .map_err(|e| AppError::authentication(format!("Failed to cache JWKS: {}", e)))?;
 
         Ok(jwks)
     }
@@ -206,25 +203,24 @@ impl AuthState {
     fn create_decoding_key(jwks: &Jwks, token: &str) -> Result<DecodingKey, AppError> {
         // Extract kid from token header if available
         let header = jsonwebtoken::decode_header(token).map_err(|e| {
-            AppError::AuthenticationError(format!("Failed to decode token header: {}", e))
+            AppError::authentication(format!("Failed to decode token header: {}", e))
         })?;
 
         let key = if let Some(kid) = header.kid {
             // Find the key with matching kid
             jwks.keys.iter().find(|k| k.kid == kid).ok_or_else(|| {
-                AppError::AuthenticationError(format!("No key found with kid: {}", kid))
+                AppError::authentication(format!("No key found with kid: {}", kid))
             })?
         } else {
             // Fallback to first key if no kid in token
             jwks.keys
                 .first()
-                .ok_or_else(|| AppError::AuthenticationError("No keys found in JWKS".to_string()))?
+                .ok_or_else(|| AppError::authentication("No keys found in JWKS".to_string()))?
         };
 
         // Convert RSA components to PEM format
-        DecodingKey::from_rsa_components(&key.n, &key.e).map_err(|e| {
-            AppError::AuthenticationError(format!("Failed to create decoding key: {}", e))
-        })
+        DecodingKey::from_rsa_components(&key.n, &key.e)
+            .map_err(|e| AppError::authentication(format!("Failed to create decoding key: {}", e)))
     }
 
     /// Validates a Keycloak token and extracts user information
@@ -256,7 +252,7 @@ impl AuthState {
 
             // Validate the token structure
             let token_data = decode::<Claims>(token, &key, &validation).map_err(|e| {
-                AppError::AuthenticationError(format!("Test token validation failed: {}", e))
+                AppError::authentication(format!("Test token validation failed: {}", e))
             })?;
 
             debug!("Test mode: Successfully validated token structure");
@@ -292,9 +288,8 @@ impl AuthState {
             self.config.keycloak.url, self.config.keycloak.realm
         )]);
 
-        let token_data = decode::<Claims>(token, &key, &validation).map_err(|e| {
-            AppError::AuthenticationError(format!("Token validation failed: {}", e))
-        })?;
+        let token_data = decode::<Claims>(token, &key, &validation)
+            .map_err(|e| AppError::authentication(format!("Token validation failed: {}", e)))?;
 
         let tenant_id = token_data.claims.realm_access.as_ref().and_then(|access| {
             access

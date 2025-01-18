@@ -4,7 +4,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::common::error::{AppError, AppResult, ErrorContext};
+use crate::common::error::{AppError, AppResult};
 use crate::domain::tenant::TenantContext;
 
 lazy_static! {
@@ -90,10 +90,7 @@ impl User {
     // Validate email format using regex
     fn validate_email(&self) -> AppResult<()> {
         if !EMAIL_REGEX.is_match(&self.email) {
-            return Err((
-                AppError::ValidationError("Invalid email format".into()),
-                ErrorContext::new(),
-            ));
+            return Err(AppError::validation("Invalid email format"));
         }
         Ok(())
     }
@@ -101,12 +98,8 @@ impl User {
     // Validate username format and length
     fn validate_username(&self) -> AppResult<()> {
         if !USERNAME_REGEX.is_match(&self.username) {
-            return Err((
-                AppError::ValidationError(
-                    "Username must be 3-32 characters and contain only letters, numbers, and underscores"
-                        .into(),
-                ),
-                ErrorContext::new(),
+            return Err(AppError::validation(
+                "Username must be 3-32 characters and contain only letters, numbers, and underscores",
             ));
         }
         Ok(())
@@ -115,15 +108,11 @@ impl User {
     // Validate full name length and content
     fn validate_full_name(&self) -> AppResult<()> {
         if self.full_name.trim().is_empty() {
-            return Err((
-                AppError::ValidationError("Full name cannot be empty".into()),
-                ErrorContext::new(),
-            ));
+            return Err(AppError::validation("Full name cannot be empty"));
         }
         if self.full_name.len() > 100 {
-            return Err((
-                AppError::ValidationError("Full name cannot exceed 100 characters".into()),
-                ErrorContext::new(),
+            return Err(AppError::validation(
+                "Full name cannot exceed 100 characters",
             ));
         }
         Ok(())
@@ -131,37 +120,38 @@ impl User {
 
     // Validate user settings
     fn validate_settings(&self) -> AppResult<()> {
-        // Validate items per page range
+        // Validate UI preferences
         if self.settings.ui_preferences.items_per_page < 1
             || self.settings.ui_preferences.items_per_page > 100
         {
-            return Err((
-                AppError::ValidationError("Items per page must be between 1 and 100".into()),
-                ErrorContext::new(),
+            return Err(AppError::validation(
+                "Items per page must be between 1 and 100",
             ));
         }
 
-        // Validate language code format
+        // Validate language code format (basic check)
         if !self
             .settings
             .language
             .chars()
             .all(|c| c.is_ascii_alphabetic() || c == '-')
         {
-            return Err((
-                AppError::ValidationError("Invalid language code format".into()),
-                ErrorContext::new(),
-            ));
+            return Err(AppError::validation("Invalid language code format"));
         }
 
         // Validate timezone format (basic check)
         if self.settings.timezone.trim().is_empty() {
-            return Err((
-                AppError::ValidationError("Timezone cannot be empty".into()),
-                ErrorContext::new(),
-            ));
+            return Err(AppError::validation("Timezone cannot be empty"));
         }
 
+        Ok(())
+    }
+
+    #[allow(dead_code)]
+    pub fn validate_active(&self) -> AppResult<()> {
+        if !self.is_active {
+            return Err(AppError::user("User is not active"));
+        }
         Ok(())
     }
 }
@@ -178,10 +168,7 @@ impl UserContext {
 
     pub fn validate_active(&self) -> AppResult<()> {
         if !self.user.is_active {
-            return Err((
-                AppError::User("User is not active".into()),
-                ErrorContext::new(),
-            ));
+            return Err(AppError::user("User is not active"));
         }
         Ok(())
     }

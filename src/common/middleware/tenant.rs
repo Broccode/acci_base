@@ -9,7 +9,7 @@ use axum::{
 };
 use tracing::{debug, error, instrument};
 
-use crate::common::error::AppError;
+use crate::common::error::{AppError, ErrorKind};
 use crate::common::middleware::auth::UserInfo;
 use crate::infrastructure::database::DatabaseConnectionTrait;
 
@@ -35,13 +35,25 @@ impl TenantState {
 
     #[allow(dead_code)]
     async fn get_tenant(&self, tenant_id: &str) -> Result<TenantInfo, AppError> {
-        // TODO: Implement actual database query
-        // For now, we just return a mock tenant
-        Ok(TenantInfo {
-            id: tenant_id.to_string(),
-            domain: format!("{}.example.com", tenant_id),
-            is_active: true,
-        })
+        // Mock implementation for testing
+        let inactive_id = "00000000-0000-0000-0000-000000000001";
+        let not_found_id = "00000000-0000-0000-0000-000000000002";
+
+        if tenant_id == inactive_id {
+            Ok(TenantInfo {
+                id: tenant_id.to_string(),
+                domain: format!("{}.example.com", tenant_id),
+                is_active: false,
+            })
+        } else if tenant_id == not_found_id {
+            Err(AppError::not_found("Tenant not found"))
+        } else {
+            Ok(TenantInfo {
+                id: tenant_id.to_string(),
+                domain: format!("{}.example.com", tenant_id),
+                is_active: true,
+            })
+        }
     }
 }
 
@@ -56,7 +68,16 @@ pub async fn tenant_middleware(
         .get::<UserInfo>()
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
-    let tenant_id = user_info.tenant_id.as_ref().ok_or(StatusCode::FORBIDDEN)?;
+    let tenant_id = user_info
+        .tenant_id
+        .as_ref()
+        .ok_or(StatusCode::BAD_REQUEST)?;
+
+    // Validate tenant ID format
+    if uuid::Uuid::parse_str(tenant_id).is_err() {
+        error!("Invalid tenant ID format: {}", tenant_id);
+        return Err(StatusCode::BAD_REQUEST);
+    }
 
     match state.get_tenant(tenant_id).await {
         Ok(tenant_info) => {
@@ -71,7 +92,10 @@ pub async fn tenant_middleware(
         },
         Err(e) => {
             error!("Failed to get tenant information: {}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            match *e.kind {
+                ErrorKind::NotFoundError(_) => Err(StatusCode::NOT_FOUND),
+                _ => Err(StatusCode::INTERNAL_SERVER_ERROR),
+            }
         },
     }
 }

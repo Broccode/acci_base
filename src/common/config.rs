@@ -287,6 +287,10 @@ pub fn get_log_level() -> &'static str {
     &SETTINGS.logging.level
 }
 
+pub fn get_database_config() -> DatabaseSettings {
+    AppConfig::default().database
+}
+
 #[cfg(test)]
 impl Settings {
     fn with_mock_fs() -> &'static Mutex<MockFs> {

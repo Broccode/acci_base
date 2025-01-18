@@ -6,5 +6,3 @@ mod tenant;
 mod auth_test;
 #[cfg(test)]
 mod tenant_test;
-
-pub use language::LanguageLayer;

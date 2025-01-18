@@ -92,21 +92,19 @@ pub async fn oauth_callback(
 ) -> Result<Response, AppError> {
     let cookies = headers
         .typed_get::<Cookie>()
-        .ok_or_else(|| AppError::AuthenticationError("No cookies found".to_string()))?;
+        .ok_or_else(|| AppError::authentication("No cookies found".to_string()))?;
 
     let stored_csrf_token = cookies
         .get(CSRF_COOKIE_NAME)
-        .ok_or_else(|| AppError::AuthenticationError("Missing CSRF token".to_string()))?;
+        .ok_or_else(|| AppError::authentication("Missing CSRF token".to_string()))?;
 
     if stored_csrf_token != query.state {
-        return Err(AppError::AuthenticationError(
-            "Invalid CSRF token".to_string(),
-        ));
+        return Err(AppError::authentication("Invalid CSRF token".to_string()));
     }
 
     let pkce_verifier = cookies
         .get(PKCE_VERIFIER_COOKIE_NAME)
-        .ok_or_else(|| AppError::AuthenticationError("Missing PKCE verifier".to_string()))?;
+        .ok_or_else(|| AppError::authentication("Missing PKCE verifier".to_string()))?;
 
     let token_result = state
         .oauth_client
@@ -114,7 +112,7 @@ pub async fn oauth_callback(
         .set_pkce_verifier(PkceCodeVerifier::new(pkce_verifier.to_string()))
         .request_async(oauth2::reqwest::async_http_client)
         .await
-        .map_err(|e| AppError::AuthenticationError(format!("Token exchange failed: {}", e)))?;
+        .map_err(|e| AppError::authentication(format!("Token exchange failed: {}", e)))?;
 
     let token_info = TokenInfo {
         access_token: token_result.access_token().secret().clone(),
@@ -143,10 +141,10 @@ pub async fn oauth_callback(
         .header(header::CONTENT_TYPE, "application/json")
         .body(
             serde_json::to_string(&token_info)
-                .map_err(|e| AppError::SerializationError(e.to_string()))?
+                .map_err(|e| AppError::serialization(e.to_string()))?
                 .into(),
         )
-        .map_err(|e| AppError::InternalError(e.to_string()))?;
+        .map_err(|e| AppError::internal(e.to_string()))?;
 
     Ok(response)
 }

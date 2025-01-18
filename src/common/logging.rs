@@ -1,5 +1,7 @@
+use crate::common::i18n::SupportedLanguage;
 use crate::common::{config, i18n::I18nManager};
 use axum::http::HeaderMap;
+use tracing::Level;
 use tracing_subscriber::{
     fmt::{self, format::FmtSpan},
     layer::SubscriberExt,
@@ -100,15 +102,24 @@ pub async fn setup_request_span(
     request_id: String,
     i18n: &I18nManager,
 ) -> tracing::Span {
-    let unknown = i18n.format_message("en", "log-unknown-tenant", None).await;
-    let unknown_user = i18n.format_message("en", "log-unknown-user", None).await;
+    let unknown = i18n
+        .format_message(SupportedLanguage::En, "log-unknown-tenant", None)
+        .await
+        .unwrap_or_else(|_| "unknown tenant".to_string());
+    let unknown_user = i18n
+        .format_message(SupportedLanguage::En, "log-unknown-user", None)
+        .await
+        .unwrap_or_else(|_| "unknown user".to_string());
 
-    tracing::info_span!(
+    let span = tracing::span!(
+        Level::INFO,
         "request",
         tenant_id = tenant_id.unwrap_or(unknown),
         user_id = user_id.unwrap_or(unknown_user),
         request_id = request_id,
-    )
+    );
+
+    span
 }
 
 #[cfg(test)]

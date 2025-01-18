@@ -21,6 +21,7 @@ pub struct LanguageLayer {
 }
 
 impl LanguageLayer {
+    #[allow(dead_code)]
     pub fn new(i18n_manager: Arc<I18nManager>) -> Self {
         Self { i18n_manager }
     }
@@ -136,9 +137,9 @@ mod tests {
 
     async fn setup_i18n() -> Arc<I18nManager> {
         Arc::new(
-            I18nManager::new_with_provider(TestResourceProvider::new())
+            I18nManager::new(SupportedLanguage::En, Arc::new(TestResourceProvider::new()))
                 .await
-                .expect("Failed to initialize i18n"),
+                .unwrap(),
         )
     }
 

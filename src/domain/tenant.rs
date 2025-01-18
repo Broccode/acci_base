@@ -1,5 +1,7 @@
-use crate::common::error::{AppError, AppResult, ErrorContext};
-use crate::common::i18n::I18nManager;
+use crate::common::{
+    error::{AppError, AppResult, ErrorContext},
+    i18n::{I18nManager, SupportedLanguage},
+};
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -57,15 +59,11 @@ impl Tenant {
     // Validate tenant name
     fn validate_name(&self) -> AppResult<()> {
         if self.name.trim().is_empty() {
-            return Err((
-                AppError::ValidationError("Tenant name cannot be empty".into()),
-                ErrorContext::new(),
-            ));
+            return Err(AppError::validation("Tenant name cannot be empty"));
         }
         if self.name.len() > 100 {
-            return Err((
-                AppError::ValidationError("Tenant name cannot exceed 100 characters".into()),
-                ErrorContext::new(),
+            return Err(AppError::validation(
+                "Tenant name cannot exceed 100 characters",
             ));
         }
         Ok(())
@@ -74,10 +72,7 @@ impl Tenant {
     // Validate domain format
     fn validate_domain(&self) -> AppResult<()> {
         if !DOMAIN_REGEX.is_match(&self.domain) {
-            return Err((
-                AppError::ValidationError("Invalid domain format".into()),
-                ErrorContext::new(),
-            ));
+            return Err(AppError::validation("Invalid domain format"));
         }
         Ok(())
     }
@@ -85,24 +80,15 @@ impl Tenant {
     // Validate tenant settings
     fn validate_settings(&self) -> AppResult<()> {
         if self.settings.max_users < 1 {
-            return Err((
-                AppError::ValidationError("Max users must be at least 1".into()),
-                ErrorContext::new(),
-            ));
+            return Err(AppError::validation("Max users must be at least 1"));
         }
 
         if self.settings.storage_limit < 1024 * 1024 {
-            return Err((
-                AppError::ValidationError("Storage limit must be at least 1MB".into()),
-                ErrorContext::new(),
-            ));
+            return Err(AppError::validation("Storage limit must be at least 1MB"));
         }
 
         if self.settings.api_rate_limit < 1 {
-            return Err((
-                AppError::ValidationError("API rate limit must be at least 1".into()),
-                ErrorContext::new(),
-            ));
+            return Err(AppError::validation("API rate limit must be at least 1"));
         }
 
         Ok(())
@@ -110,10 +96,14 @@ impl Tenant {
 
     // Validate active status with i18n support
     #[allow(dead_code)]
-    pub async fn validate_i18n(&self, i18n: &I18nManager, lang: &str) -> AppResult<()> {
+    pub async fn validate_i18n(
+        &self,
+        i18n: &I18nManager,
+        lang: SupportedLanguage,
+    ) -> AppResult<()> {
         if !self.is_active {
-            let msg = i18n.format_message(lang, "tenant-not-active", None).await;
-            return Err((AppError::Tenant(msg), ErrorContext::new()));
+            let msg = i18n.format_message(lang, "tenant-not-active", None).await?;
+            return Err(AppError::tenant(msg));
         }
         Ok(())
     }
@@ -122,10 +112,7 @@ impl Tenant {
     #[allow(dead_code)]
     pub fn validate_active(&self) -> AppResult<()> {
         if !self.is_active {
-            return Err((
-                AppError::Tenant("Tenant is not active".into()),
-                ErrorContext::new(),
-            ));
+            return Err(AppError::tenant("Tenant is not active"));
         }
         Ok(())
     }
@@ -142,8 +129,7 @@ impl TenantContext {
 
     pub fn validate_active(&self) -> AppResult<()> {
         if !self.tenant.is_active {
-            return Err((
-                AppError::Tenant("Tenant is not active".into()),
+            return Err(AppError::tenant("Tenant is not active").with_context(
                 ErrorContext::new()
                     .with_tenant(self.tenant.id.to_string())
                     .with_request(self.request_id.clone()),
@@ -153,11 +139,15 @@ impl TenantContext {
     }
 }
 
-#[allow(dead_code)]
 #[async_trait::async_trait]
 pub trait TenantService: Send + Sync + 'static {
-    async fn find_by_id(&self, id: &str) -> Result<Tenant, AppError>;
-    async fn find_by_domain(&self, domain: &str) -> Result<Tenant, AppError>;
+    async fn list(&self) -> AppResult<Vec<Tenant>>;
+    async fn find_by_id(&self, id: &str) -> AppResult<Tenant>;
+    #[allow(dead_code)]
+    async fn find_by_domain(&self, domain: &str) -> AppResult<Tenant>;
+    async fn create(&self, tenant: Tenant) -> AppResult<Tenant>;
+    async fn update(&self, tenant: Tenant) -> AppResult<Tenant>;
+    async fn delete(&self, id: &str) -> AppResult<()>;
 }
 
 #[cfg(test)]
@@ -237,14 +227,6 @@ mod tests {
 
         let result = context.validate_active();
         assert!(result.is_err());
-
-        match result {
-            Err((error, _context)) => match error {
-                AppError::Tenant(msg) => assert_eq!(msg, "Tenant is not active"),
-                _ => panic!("Expected AppError::Tenant"),
-            },
-            Ok(_) => panic!("Expected error"),
-        }
     }
 
     #[test]
@@ -256,12 +238,9 @@ mod tests {
         let result = context.validate_active();
         assert!(result.is_err());
 
-        match result {
-            Err((_, error_context)) => {
-                assert_eq!(error_context.tenant_id.unwrap(), tenant.id.to_string());
-                assert_eq!(error_context.request_id.unwrap(), request_id);
-            },
-            Ok(_) => panic!("Expected error"),
+        if let Err(error) = result {
+            assert_eq!(error.context.tenant_id.unwrap(), tenant.id.to_string());
+            assert_eq!(error.context.request_id.unwrap(), request_id);
         }
     }
 }

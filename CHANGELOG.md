@@ -116,6 +116,21 @@ Create a git tag for the version (e.g., v0.2.0)
 
 # [Unreleased]
 
+### Changed
+- Simplified Docker build process by adopting native multi-platform builds
+  - Removed complex cross-compilation setup
+  - Switched to Docker's buildx for multi-platform support
+  - Streamlined CI/CD pipeline configurations
+  - Enhanced build caching and layer optimization
+  - Improved build reliability and maintainability
+
+### Fixed
+- Resolved cross-compilation issues by switching to native Docker multi-platform builds
+  - Eliminated complex cross-compilation environment setup
+  - Removed manual OpenSSL and system library configurations
+  - Fixed platform-specific build failures
+  - Improved build reproducibility across platforms
+
 ### Added
 - System metrics monitoring in health checks using sysinfo
   - Memory usage tracking

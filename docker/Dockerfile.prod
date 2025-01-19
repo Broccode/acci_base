@@ -5,133 +5,35 @@ FROM chef AS planner
 COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
 
-FROM --platform=$BUILDPLATFORM chef AS builder
-ARG TARGETPLATFORM
+FROM chef AS builder
+COPY --from=planner /app/recipe.json recipe.json
 
 # Install system dependencies
-RUN dpkg --add-architecture ppc64el && \
-    # Remove existing sources
-    rm -f /etc/apt/sources.list.d/* && \
-    truncate -s 0 /etc/apt/sources.list && \
-    # Add repositories for both architectures
-    echo "deb [arch=amd64,ppc64el] http://deb.debian.org/debian bookworm main" > /etc/apt/sources.list && \
-    echo "deb [arch=amd64,ppc64el] http://deb.debian.org/debian-security bookworm-security main" >> /etc/apt/sources.list && \
-    echo "deb [arch=amd64,ppc64el] http://deb.debian.org/debian bookworm-updates main" >> /etc/apt/sources.list && \
-    # Update and install packages
-    apt-get update && \
+RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
     pkg-config \
     libssl-dev \
     cmake \
-    clang \
-    llvm-dev \
-    libclang-dev \
-    gcc-powerpc64le-linux-gnu \
-    libc6-dev-ppc64el-cross \
-    gcc \
-    g++ \
-    musl-tools \
-    libssl-dev:ppc64el \
     && rm -rf /var/lib/apt/lists/*
-
-# Install cross-compilation tools and OpenSSL for PowerPC64le
-RUN dpkg --add-architecture ppc64el && \
-    apt-get update && \
-    apt-get install -y \
-    crossbuild-essential-ppc64el \
-    libssl-dev:ppc64el \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create directories for cross-compilation
-RUN mkdir -p /usr/powerpc64le-linux-gnu/lib/pkgconfig && \
-    mkdir -p /usr/powerpc64le-linux-gnu/include/openssl && \
-    # Copy OpenSSL files
-    cp -r /usr/lib/powerpc64le-linux-gnu/libssl.* /usr/powerpc64le-linux-gnu/lib/ && \
-    cp -r /usr/lib/powerpc64le-linux-gnu/libcrypto.* /usr/powerpc64le-linux-gnu/lib/ && \
-    cp -r /usr/include/powerpc64le-linux-gnu/openssl/* /usr/powerpc64le-linux-gnu/include/openssl/ && \
-    # Copy pkg-config files
-    cp -r /usr/lib/powerpc64le-linux-gnu/pkgconfig/* /usr/powerpc64le-linux-gnu/lib/pkgconfig/ || true
-
-# Install latest bindgen
-RUN cargo install --locked --version "0.69.1" bindgen-cli
-
-# Set up cross-compilation environment
-ENV CC_x86_64_unknown_linux_gnu=x86_64-linux-gnu-gcc
-ENV CXX_x86_64_unknown_linux_gnu=x86_64-linux-gnu-g++
-ENV AR_x86_64_unknown_linux_gnu=x86_64-linux-gnu-ar
-ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=x86_64-linux-gnu-gcc
-
-# PowerPC64 specific environment variables
-ENV CC_powerpc64le_unknown_linux_gnu=powerpc64le-linux-gnu-gcc
-ENV CXX_powerpc64le_unknown_linux_gnu=powerpc64le-linux-gnu-g++
-ENV AR_powerpc64le_unknown_linux_gnu=powerpc64le-linux-gnu-ar
-ENV CARGO_TARGET_POWERPC64LE_UNKNOWN_LINUX_GNU_LINKER=powerpc64le-linux-gnu-gcc
 
 # Create appuser
 RUN adduser --no-create-home --disabled-password --gecos "" appuser
 
-# Copy Clippy configuration
+# Copy configuration files
 COPY .clippy.toml .
 COPY rustfmt.toml .
 
 # Build dependencies - this is the caching Docker layer!
-COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --recipe-path recipe.json
-
-# Build with optimizations
-RUN case "$TARGETPLATFORM" in \
-    "linux/amd64")  \
-        TARGET="x86_64-unknown-linux-gnu" \
-        ;; \
-    "linux/ppc64le")  \
-        TARGET="powerpc64le-unknown-linux-gnu" \
-        export AWS_LC_SYS_EXTERNAL_BINDGEN=1 \
-        export BINDGEN_EXTRA_CLANG_ARGS="--sysroot=/usr/powerpc64le-linux-gnu -target powerpc64le-unknown-linux-gnu" \
-        export RUST_TARGET_PATH=/usr/powerpc64le-linux-gnu \
-        export PKG_CONFIG_PATH=/usr/powerpc64le-linux-gnu/lib/pkgconfig \
-        export PKG_CONFIG_ALLOW_CROSS=1 \
-        export AWS_LC_SYS_NO_ASM=1 \
-        export AWS_LC_SYS_BINDGEN_FEATURE=1 \
-        export AWS_LC_SYS_BINDGEN_PATH=/usr/local/cargo/bin/bindgen \
-        export AWS_LC_SYS_INCLUDES="/usr/powerpc64le-linux-gnu/include" \
-        export LIBCLANG_PATH="/usr/lib/llvm-14/lib" \
-        export OPENSSL_DIR=/usr/powerpc64le-linux-gnu \
-        export OPENSSL_LIB_DIR=/usr/powerpc64le-linux-gnu/lib \
-        export OPENSSL_INCLUDE_DIR=/usr/powerpc64le-linux-gnu/include \
-        export PKG_CONFIG_SYSROOT_DIR=/usr/powerpc64le-linux-gnu \
-        ;; \
-    *)  TARGET="x86_64-unknown-linux-gnu" \
-        ;; \
-    esac && \
-    rustup target add $TARGET
 
 # Build application
 COPY . .
-RUN case "$TARGETPLATFORM" in \
-    "linux/amd64")  \
-        cargo clippy --all-features -- -D warnings && \
-        cargo build --release --target x86_64-unknown-linux-gnu \
-        ;; \
-    "linux/ppc64le")  \
-        export OPENSSL_DIR=/usr/powerpc64le-linux-gnu && \
-        export OPENSSL_LIB_DIR=/usr/powerpc64le-linux-gnu/lib && \
-        export OPENSSL_INCLUDE_DIR=/usr/powerpc64le-linux-gnu/include && \
-        export PKG_CONFIG_SYSROOT_DIR=/usr/powerpc64le-linux-gnu && \
-        export PKG_CONFIG_PATH=/usr/powerpc64le-linux-gnu/lib/pkgconfig && \
-        export PKG_CONFIG_ALLOW_CROSS=1 && \
-        export POWERPC64LE_UNKNOWN_LINUX_GNU_OPENSSL_LIB_DIR=/usr/powerpc64le-linux-gnu/lib && \
-        export POWERPC64LE_UNKNOWN_LINUX_GNU_OPENSSL_INCLUDE_DIR=/usr/powerpc64le-linux-gnu/include && \
-        cargo clippy --all-features -- -D warnings && \
-        cargo build --release --target powerpc64le-unknown-linux-gnu \
-        ;; \
-    *)  cargo clippy --all-features -- -D warnings && \
-        cargo build --release --target x86_64-unknown-linux-gnu \
-        ;; \
-    esac
+RUN cargo clippy --all-features -- -D warnings && \
+    cargo build --release
 
 # Generate SBOM
-RUN cargo install cargo-cyclonedx
-RUN cargo cyclonedx -f json --override-filename bom
+RUN cargo install cargo-cyclonedx && \
+    cargo cyclonedx -f json --override-filename bom
 
 # Security scan stage
 FROM aquasec/trivy:latest AS security-scan
@@ -142,7 +44,7 @@ RUN trivy fs --severity HIGH,CRITICAL --exit-code 1 /app
 FROM --platform=$TARGETPLATFORM gcr.io/distroless/cc-debian12:nonroot
 
 # Copy binary, SBOM and user info
-COPY --from=builder /app/target/*/release/acci_base /app/acci_base
+COPY --from=builder /app/target/release/acci_base /app/acci_base
 COPY --from=builder /app/bom.json /app/bom.json
 COPY --from=builder /etc/passwd /etc/passwd
 

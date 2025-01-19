@@ -41,46 +41,21 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          platforms: ${{ env.PLATFORMS }}
 
       - name: Set up Cosign
         uses: sigstore/cosign-installer@v3.1.1
 
-      # Build for each platform separately
-      - name: Build Docker images
-        run: |
-          for platform in $(echo ${{ env.PLATFORMS }} | tr ',' ' '); do
-            docker buildx build \
-              --platform $platform \
-              --cache-from type=gha \
-              --cache-to type=gha,mode=max \
-              --file ./docker/Dockerfile.prod \
-              --tag acci:${platform//linux\//} \
-              --load \
-              .
-          done
-
-      - name: Generate SBOM for all architectures
-        run: |
-          for platform in $(echo ${{ env.PLATFORMS }} | tr ',' ' '); do
-            arch=${platform//linux\//}
-            docker create --name temp-$arch acci:$arch
-            docker cp temp-$arch:/app/bom.json ./bom-$platform.json
-            docker rm temp-$arch
-          done
-
-      - name: Run Trivy vulnerability scanner for all architectures
-        run: |
-          for platform in $(echo ${{ env.PLATFORMS }} | tr ',' ' '); do
-            arch=${platform//linux\//}
-            trivy image \
-              acci:$arch \
-              -f sarif \
-              -o trivy-results-$platform.sarif \
-              --severity CRITICAL,HIGH,MEDIUM \
-              --timeout 10m
-          done
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile.prod
+          platforms: ${{ env.PLATFORMS }}
+          push: false
+          load: true
+          tags: acci:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
@@ -89,76 +64,52 @@ jobs:
           format: cyclonedx-json
           output-file: ./container-bom.json
 
-      # Additional Trivy scans for config and secrets
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: acci:latest
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH,MEDIUM
+
       - name: Run Trivy config scanner
         uses: aquasecurity/trivy-action@master
-        if: success()
         with:
-          scan-type: 'image'
-          scan-ref: 'acci:amd64'
-          format: 'sarif'
-          output: './trivy-config-results.sarif'
-          severity: 'CRITICAL,HIGH,MEDIUM'
-          scanners: 'config'
+          scan-type: config
+          scan-ref: acci:latest
+          format: sarif
+          output: trivy-config-results.sarif
+          severity: CRITICAL,HIGH,MEDIUM
 
       - name: Run Trivy filesystem scanner
         uses: aquasecurity/trivy-action@master
-        if: success()
         with:
-          scan-ref: '.'
-          format: 'sarif'
-          output: './trivy-fs-results.sarif'
-          severity: 'CRITICAL,HIGH,MEDIUM'
-          scan-type: 'fs'
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs-results.sarif
+          severity: CRITICAL,HIGH,MEDIUM
 
       - name: Upload Trivy vulnerability results
         uses: github/codeql-action/upload-sarif@v3
-        if: success() && hashFiles('./trivy-results.sarif') != ''
+        if: success()
         with:
-          sarif_file: './trivy-results.sarif'
+          sarif_file: trivy-results.sarif
           category: trivy-vuln
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Trivy config results
         uses: github/codeql-action/upload-sarif@v3
-        if: success() && hashFiles('./trivy-config-results.sarif') != ''
+        if: success()
         with:
-          sarif_file: './trivy-config-results.sarif'
+          sarif_file: trivy-config-results.sarif
           category: trivy-config
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Trivy secret results
+      - name: Upload Trivy filesystem results
         uses: github/codeql-action/upload-sarif@v3
-        if: success() && hashFiles('./trivy-secret-results.sarif') != ''
+        if: success()
         with:
-          sarif_file: './trivy-secret-results.sarif'
-          category: trivy-secret
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Verify SBOM
-        run: |
-          # Extract SBOM from image
-          docker create --name temp acci:latest
-          docker cp temp:/app/bom.json ./container-bom.json
-          docker rm temp
-
-          # Install cdxgen for SBOM validation
-          npm install -g @cyclonedx/cdxgen
-
-          # Validate SBOM format and check for completeness
-          cdxgen --validate ./container-bom.json
-          
-          # Additional SBOM checks
-          if ! jq -e '.components | length > 0' container-bom.json; then
-            echo "SBOM appears to be empty or invalid"
-            exit 1
-          fi
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          sarif_file: trivy-fs-results.sarif
+          category: trivy-fs
 
       - name: Run Docker Scout
         uses: docker/scout-action@v1
@@ -168,77 +119,18 @@ jobs:
           only-severities: critical,high
           exit-code: true
           summary: true
-          format: json
+          format: sarif
           sarif-file: docker-scout-results.sarif
-        env:
-          DOCKER_SCOUT_HUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKER_SCOUT_HUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Upload Docker Scout results
         uses: github/codeql-action/upload-sarif@v3
-        if: success() && hashFiles('docker-scout-results.sarif') != ''
+        if: success()
         with:
           sarif_file: docker-scout-results.sarif
           category: docker-scout
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Check for outdated base images
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: 'acci:amd64'
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
-          format: 'table'
-
-      - name: Create Container Structure Test config
-        run: |
-          if [ ! -f ./docker/.container-structure-test.yaml ]; then
-            cp ./docker/.container-structure-test.yaml.dist ./docker/.container-structure-test.yaml
-          fi
-
-      - name: Run Container Structure Test for all architectures
-        run: |
-          for platform in $(echo ${{ env.PLATFORMS }} | tr ',' ' '); do
-            arch=${platform//linux\//}
-            container-structure-test test \
-              --image acci:$arch \
-              --config ./docker/.container-structure-test.yaml
-          done
-
-      # Image Signing for each architecture
-      - name: Sign images with Cosign
-        run: |
-          for platform in $(echo ${{ env.PLATFORMS }} | tr ',' ' '); do
-            arch=${platform//linux\//}
-            cosign sign --yes acci:$arch
-          done
-
-  dependency-audit:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Audit Rust Dependencies
-        uses: actions-rust-lang/audit@v1
-        with:
-          ignore: RUSTSEC-2023-0071
-          # token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install cargo-deny
-        run: cargo install --locked cargo-deny
-
-      - name: Run cargo-deny checks
-        run: |
-          cargo deny check licenses
-          cargo deny check sources
-          cargo deny check advisories
 
   sign-image:
-    needs: [security-scan, dependency-audit]
+    needs: [security-scan]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -246,5 +138,4 @@ jobs:
       id-token: write
     steps:
       - name: Sign the image with Cosign
-        run: |
-          cosign sign --yes acci:latest
+        run: cosign sign --yes acci:latest

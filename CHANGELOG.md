@@ -123,6 +123,10 @@ Create a git tag for the version (e.g., v0.2.0)
   - Streamlined CI/CD pipeline configurations
   - Enhanced build caching and layer optimization
   - Improved build reliability and maintainability
+  - Removed redundant platform specification in final stage
+  - Optimized Dockerfile for better BuildKit compatibility
+  - Added GitHub Container Registry integration for image storage
+  - Enhanced security scanning workflow with registry-based image handling
 
 ### Fixed
 - Resolved cross-compilation issues by switching to native Docker multi-platform builds
@@ -130,6 +134,7 @@ Create a git tag for the version (e.g., v0.2.0)
   - Removed manual OpenSSL and system library configurations
   - Fixed platform-specific build failures
   - Improved build reproducibility across platforms
+  - Fixed Trivy security scanning by using registry-based image references
 
 ### Added
 - System metrics monitoring in health checks using sysinfo

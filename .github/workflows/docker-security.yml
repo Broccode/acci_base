@@ -18,6 +18,8 @@ on:
 env:
   DOCKER_BUILDKIT: "1"
   PLATFORMS: linux/amd64,linux/ppc64le
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 permissions: write-all
 
@@ -31,6 +33,7 @@ jobs:
       issues: write
       checks: write
       pull-requests: write
+      packages: write
 
     steps:
       - name: Checkout code
@@ -45,6 +48,13 @@ jobs:
       - name: Set up Cosign
         uses: sigstore/cosign-installer@v3.1.1
 
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       # Build for AMD64
       - name: Build AMD64 image
         uses: docker/build-push-action@v5
@@ -52,9 +62,8 @@ jobs:
           context: .
           file: ./docker/Dockerfile.prod
           platforms: linux/amd64
-          push: false
-          load: true
-          tags: acci:amd64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -65,30 +74,29 @@ jobs:
           context: .
           file: ./docker/Dockerfile.prod
           platforms: linux/ppc64le
-          push: false
-          load: true
-          tags: acci:ppc64le
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ppc64le
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Generate SBOM for AMD64
         uses: anchore/sbom-action@v0
         with:
-          image: acci:amd64
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:amd64
           format: cyclonedx-json
           output-file: ./container-bom-amd64.json
 
       - name: Generate SBOM for PPC64LE
         uses: anchore/sbom-action@v0
         with:
-          image: acci:ppc64le
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ppc64le
           format: cyclonedx-json
           output-file: ./container-bom-ppc64le.json
 
       - name: Run Trivy vulnerability scanner for AMD64
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: acci:amd64
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:amd64
           format: sarif
           output: trivy-results-amd64.sarif
           severity: CRITICAL,HIGH,MEDIUM
@@ -96,7 +104,7 @@ jobs:
       - name: Run Trivy vulnerability scanner for PPC64LE
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: acci:ppc64le
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ppc64le
           format: sarif
           output: trivy-results-ppc64le.sarif
           severity: CRITICAL,HIGH,MEDIUM
@@ -105,7 +113,7 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: config
-          scan-ref: acci:amd64
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:amd64
           format: sarif
           output: trivy-config-results-amd64.sarif
           severity: CRITICAL,HIGH,MEDIUM
@@ -114,7 +122,7 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: config
-          scan-ref: acci:ppc64le
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ppc64le
           format: sarif
           output: trivy-config-results-ppc64le.sarif
           severity: CRITICAL,HIGH,MEDIUM
@@ -153,7 +161,7 @@ jobs:
         uses: docker/scout-action@v1
         with:
           command: quickview,cves,recommendations
-          image: acci:amd64
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:amd64
           only-severities: critical,high
           exit-code: true
           summary: true
@@ -164,7 +172,7 @@ jobs:
         uses: docker/scout-action@v1
         with:
           command: quickview,cves,recommendations
-          image: acci:ppc64le
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ppc64le
           only-severities: critical,high
           exit-code: true
           summary: true
@@ -187,7 +195,7 @@ jobs:
       id-token: write
     steps:
       - name: Sign AMD64 image
-        run: cosign sign --yes acci:amd64
+        run: cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:amd64
 
       - name: Sign PPC64LE image
-        run: cosign sign --yes acci:ppc64le
+        run: cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ppc64le

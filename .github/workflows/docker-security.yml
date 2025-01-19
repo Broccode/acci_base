@@ -19,7 +19,7 @@ env:
   DOCKER_BUILDKIT: "1"
   PLATFORMS: linux/amd64,linux/ppc64le
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: broccode/acci_base
 
 permissions: write-all
 

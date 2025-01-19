@@ -79,19 +79,22 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Generate SBOM for AMD64
-        uses: anchore/sbom-action@v0
-        with:
-          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:amd64
-          format: cyclonedx-json
-          output-file: ./container-bom-amd64.json
+      - name: Extract SBOMs from images
+        run: |
+          mkdir -p sboms
+          docker create --name temp-amd64 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:amd64
+          docker cp temp-amd64:/app/bom.json ./sboms/bom-amd64.json
+          docker rm temp-amd64
+          
+          docker create --name temp-ppc64le ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ppc64le
+          docker cp temp-ppc64le:/app/bom.json ./sboms/bom-ppc64le.json
+          docker rm temp-ppc64le
 
-      - name: Generate SBOM for PPC64LE
-        uses: anchore/sbom-action@v0
+      - name: Upload SBOMs
+        uses: actions/upload-artifact@v4
         with:
-          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ppc64le
-          format: cyclonedx-json
-          output-file: ./container-bom-ppc64le.json
+          name: sboms
+          path: sboms/
 
       - name: Run Trivy vulnerability scanner for AMD64
         uses: aquasecurity/trivy-action@master

@@ -34,6 +34,14 @@ RUN dpkg --add-architecture ppc64el && \
     libssl-dev:ppc64el \
     && rm -rf /var/lib/apt/lists/*
 
+# Install cross-compilation tools and OpenSSL for PowerPC64le
+RUN dpkg --add-architecture ppc64el && \
+    apt-get update && \
+    apt-get install -y \
+    crossbuild-essential-ppc64el \
+    libssl-dev:ppc64el \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create directories for cross-compilation
 RUN mkdir -p /usr/powerpc64le-linux-gnu/lib/pkgconfig && \
     mkdir -p /usr/powerpc64le-linux-gnu/include/openssl && \
@@ -105,6 +113,8 @@ RUN case "$TARGETPLATFORM" in \
         cargo build --release --target x86_64-unknown-linux-gnu \
         ;; \
     "linux/ppc64le")  \
+        PKG_CONFIG_SYSROOT_DIR=/usr/lib/powerpc64le-linux-gnu \
+        PKG_CONFIG_PATH=/usr/lib/powerpc64le-linux-gnu/pkgconfig \
         cargo clippy --all-features -- -D warnings && \
         cargo build --release --target powerpc64le-unknown-linux-gnu \
         ;; \

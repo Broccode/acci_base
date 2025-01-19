@@ -62,6 +62,8 @@ http-body-util = "0.1.2"
 intl-memoizer = "0.5.2"
 lazy_static = "1.4"
 regex = "1.10"
+sysinfo = { version = "0.33.1", features = ["component", "disk", "system"] }
+axum-core = "0.5.0"
 
 [dev-dependencies]
 tokio-test = "0.4.4"

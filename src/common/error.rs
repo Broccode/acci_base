@@ -1,4 +1,11 @@
+use axum::{
+    http::StatusCode,
+    response::{IntoResponse, Response},
+    Json,
+};
+use sea_orm::DbErr;
 use serde::Serialize;
+use thiserror::Error;
 
 #[derive(Debug)]
 pub struct AppError {
@@ -6,54 +13,79 @@ pub struct AppError {
     pub context: ErrorContext,
 }
 
-#[derive(Debug)]
-#[allow(clippy::enum_variant_names)]
+#[derive(Debug, Error)]
+#[allow(dead_code, clippy::enum_variant_names)]
 pub enum ErrorKind {
-    ValidationError(String),
+    #[error("Database error: {0}")]
     DatabaseError(String),
-    I18nError(String),
-    TenantError(String),
-    UserError(String),
-    NotFoundError(String),
-    #[allow(dead_code)]
-    AuthError(String),
+    #[error("Authentication error: {0}")]
     AuthenticationError(String),
-    #[allow(dead_code)]
+    #[error("Authorization error: {0}")]
     AuthorizationError(String),
+    #[error("Validation error: {0}")]
+    ValidationError(String),
+    #[error("Configuration error: {0}")]
     ConfigurationError(String),
+    #[error("Not found error: {0}")]
+    NotFoundError(String),
+    #[error("I18n error: {0}")]
+    I18nError(String),
+    #[error("Tenant error: {0}")]
+    TenantError(String),
+    #[error("User error: {0}")]
+    UserError(String),
+    #[error("Auth error: {0}")]
+    AuthError(String),
+    #[error("Serialization error: {0}")]
     SerializationError(String),
+    #[error("Internal error: {0}")]
     InternalError(String),
 }
 
-impl std::fmt::Display for ErrorKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::ValidationError(msg) => write!(f, "Validation error: {}", msg),
-            Self::DatabaseError(msg) => write!(f, "Database error: {}", msg),
-            Self::I18nError(msg) => write!(f, "I18n error: {}", msg),
-            Self::TenantError(msg) => write!(f, "Tenant error: {}", msg),
-            Self::UserError(msg) => write!(f, "User error: {}", msg),
-            Self::NotFoundError(msg) => write!(f, "Not found: {}", msg),
-            Self::AuthError(msg) => write!(f, "Auth error: {}", msg),
-            Self::AuthenticationError(msg) => write!(f, "Authentication error: {}", msg),
-            Self::AuthorizationError(msg) => write!(f, "Authorization error: {}", msg),
-            Self::ConfigurationError(msg) => write!(f, "Configuration error: {}", msg),
-            Self::SerializationError(msg) => write!(f, "Serialization error: {}", msg),
-            Self::InternalError(msg) => write!(f, "Internal error: {}", msg),
+#[derive(Debug, Serialize)]
+struct ErrorResponse {
+    message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    context: Option<String>,
+}
+
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
+        let status = match *self.kind {
+            ErrorKind::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            ErrorKind::AuthenticationError(_) => StatusCode::UNAUTHORIZED,
+            ErrorKind::AuthorizationError(_) => StatusCode::FORBIDDEN,
+            ErrorKind::ValidationError(_) => StatusCode::BAD_REQUEST,
+            ErrorKind::ConfigurationError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            ErrorKind::NotFoundError(_) => StatusCode::NOT_FOUND,
+            ErrorKind::I18nError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            ErrorKind::TenantError(_) => StatusCode::BAD_REQUEST,
+            ErrorKind::UserError(_) => StatusCode::BAD_REQUEST,
+            ErrorKind::AuthError(_) => StatusCode::UNAUTHORIZED,
+            ErrorKind::SerializationError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            ErrorKind::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        };
+
+        let body = Json(ErrorResponse {
+            message: self.kind.to_string(),
+            context: self.context.message,
+        });
+
+        (status, body).into_response()
+    }
+}
+
+impl From<Box<dyn std::error::Error>> for AppError {
+    fn from(error: Box<dyn std::error::Error>) -> Self {
+        Self {
+            kind: Box::new(ErrorKind::InternalError(error.to_string())),
+            context: ErrorContext::new().with_message(error.to_string()),
         }
     }
 }
 
-impl std::fmt::Display for AppError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.kind)
-    }
-}
-
-impl std::error::Error for AppError {}
-
-impl From<sea_orm::DbErr> for AppError {
-    fn from(err: sea_orm::DbErr) -> Self {
+impl From<DbErr> for AppError {
+    fn from(err: DbErr) -> Self {
         Self::database(err.to_string())
     }
 }
@@ -76,10 +108,117 @@ impl From<anyhow::Error> for AppError {
     }
 }
 
+impl From<oauth2::basic::BasicRequestTokenError<oauth2::reqwest::Error<reqwest::Error>>>
+    for AppError
+{
+    fn from(
+        err: oauth2::basic::BasicRequestTokenError<oauth2::reqwest::Error<reqwest::Error>>,
+    ) -> Self {
+        Self::authentication(err.to_string())
+    }
+}
+
+impl From<oauth2::url::ParseError> for AppError {
+    fn from(err: oauth2::url::ParseError) -> Self {
+        Self::authentication(err.to_string())
+    }
+}
+
+impl From<reqwest::Error> for AppError {
+    fn from(err: reqwest::Error) -> Self {
+        Self::internal(err.to_string())
+    }
+}
+
+pub type AppResult<T> = Result<T, AppError>;
+
+impl AppError {
+    pub fn new(kind: ErrorKind, context_msg: impl Into<String>) -> Self {
+        Self {
+            kind: Box::new(kind),
+            context: ErrorContext::new().with_message(context_msg.into()),
+        }
+    }
+
+    pub fn database(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::DatabaseError(message.into()), "Database error")
+    }
+
+    pub fn authentication(message: impl Into<String>) -> Self {
+        Self::new(
+            ErrorKind::AuthenticationError(message.into()),
+            "Authentication error",
+        )
+    }
+
+    #[allow(dead_code)]
+    pub fn authorization(message: impl Into<String>) -> Self {
+        Self::new(
+            ErrorKind::AuthorizationError(message.into()),
+            "Authorization error",
+        )
+    }
+
+    pub fn validation(message: impl Into<String>) -> Self {
+        Self::new(
+            ErrorKind::ValidationError(message.into()),
+            "Validation error",
+        )
+    }
+
+    pub fn configuration(message: impl Into<String>) -> Self {
+        Self::new(
+            ErrorKind::ConfigurationError(message.into()),
+            "Configuration error",
+        )
+    }
+
+    pub fn not_found(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::NotFoundError(message.into()), "Not found error")
+    }
+
+    pub fn i18n(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::I18nError(message.into()), "I18n error")
+    }
+
+    pub fn tenant(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::TenantError(message.into()), "Tenant error")
+    }
+
+    pub fn user(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::UserError(message.into()), "User error")
+    }
+
+    #[allow(dead_code)]
+    pub fn auth(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::AuthError(message.into()), "Auth error")
+    }
+
+    pub fn serialization(message: impl Into<String>) -> Self {
+        Self::new(
+            ErrorKind::SerializationError(message.into()),
+            "Serialization error",
+        )
+    }
+
+    pub fn internal(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::InternalError(message.into()), "Internal error")
+    }
+
+    pub fn with_context(mut self, context: ErrorContext) -> Self {
+        self.context = context;
+        self
+    }
+}
+
+impl std::fmt::Display for AppError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {:?}", self.kind, self.context)
+    }
+}
+
 #[derive(Debug, Default, Serialize)]
 pub struct ErrorContext {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub user_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tenant_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -93,9 +232,8 @@ impl ErrorContext {
         Default::default()
     }
 
-    #[allow(dead_code)]
-    pub fn with_user(mut self, user_id: String) -> Self {
-        self.user_id = Some(user_id);
+    pub fn with_message(mut self, message: String) -> Self {
+        self.message = Some(message);
         self
     }
 
@@ -108,122 +246,4 @@ impl ErrorContext {
         self.request_id = Some(request_id);
         self
     }
-
-    pub fn with_message(mut self, message: String) -> Self {
-        self.message = Some(message);
-        self
-    }
 }
-
-impl std::fmt::Display for ErrorContext {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Context {{ user_id: {:?}, tenant_id: {:?}, request_id: {:?}, message: {:?} }}",
-            self.user_id, self.tenant_id, self.request_id, self.message
-        )
-    }
-}
-
-impl AppError {
-    #[allow(dead_code)]
-    pub fn new(kind: ErrorKind) -> Self {
-        Self {
-            kind: Box::new(kind),
-            context: ErrorContext::new(),
-        }
-    }
-
-    pub fn with_context(mut self, context: ErrorContext) -> Self {
-        self.context = context;
-        self
-    }
-
-    pub fn validation(msg: impl Into<String>) -> Self {
-        Self {
-            kind: Box::new(ErrorKind::ValidationError(msg.into())),
-            context: ErrorContext::new(),
-        }
-    }
-
-    pub fn database(msg: impl Into<String>) -> Self {
-        Self {
-            kind: Box::new(ErrorKind::DatabaseError(msg.into())),
-            context: ErrorContext::new(),
-        }
-    }
-
-    pub fn i18n(msg: impl Into<String>) -> Self {
-        Self {
-            kind: Box::new(ErrorKind::I18nError(msg.into())),
-            context: ErrorContext::new(),
-        }
-    }
-
-    pub fn tenant(msg: impl Into<String>) -> Self {
-        Self {
-            kind: Box::new(ErrorKind::TenantError(msg.into())),
-            context: ErrorContext::new(),
-        }
-    }
-
-    pub fn user(msg: impl Into<String>) -> Self {
-        Self {
-            kind: Box::new(ErrorKind::UserError(msg.into())),
-            context: ErrorContext::new(),
-        }
-    }
-
-    pub fn not_found(msg: impl Into<String>) -> Self {
-        Self {
-            kind: Box::new(ErrorKind::NotFoundError(msg.into())),
-            context: ErrorContext::new(),
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn auth(msg: impl Into<String>) -> Self {
-        Self {
-            kind: Box::new(ErrorKind::AuthError(msg.into())),
-            context: ErrorContext::new(),
-        }
-    }
-
-    pub fn authentication(msg: impl Into<String>) -> Self {
-        Self {
-            kind: Box::new(ErrorKind::AuthenticationError(msg.into())),
-            context: ErrorContext::new(),
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn authorization(msg: impl Into<String>) -> Self {
-        Self {
-            kind: Box::new(ErrorKind::AuthorizationError(msg.into())),
-            context: ErrorContext::new(),
-        }
-    }
-
-    pub fn configuration(msg: impl Into<String>) -> Self {
-        Self {
-            kind: Box::new(ErrorKind::ConfigurationError(msg.into())),
-            context: ErrorContext::new(),
-        }
-    }
-
-    pub fn serialization(msg: impl Into<String>) -> Self {
-        Self {
-            kind: Box::new(ErrorKind::SerializationError(msg.into())),
-            context: ErrorContext::new(),
-        }
-    }
-
-    pub fn internal(msg: impl Into<String>) -> Self {
-        Self {
-            kind: Box::new(ErrorKind::InternalError(msg.into())),
-            context: ErrorContext::new(),
-        }
-    }
-}
-
-pub type AppResult<T> = Result<T, AppError>;

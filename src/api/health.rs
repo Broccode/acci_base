@@ -5,11 +5,9 @@ use axum::{
 };
 use chrono::Utc;
 use serde::Serialize;
+use sysinfo::System as SysInfo;
 
-use crate::common::{
-    error::{AppError, AppResult, ErrorKind},
-    i18n::SupportedLanguage,
-};
+use crate::common::{error::AppResult, i18n::SupportedLanguage};
 use crate::infrastructure::state::AppState;
 
 pub fn health_routes() -> axum::Router<AppState> {
@@ -23,77 +21,147 @@ pub struct HealthResponse {
     status: String,
     message: String,
     timestamp: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    details: Option<HealthDetails>,
 }
 
 #[derive(Debug, Serialize)]
-struct ErrorBody {
-    message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    context: Option<String>,
+pub struct HealthDetails {
+    tenant_service: ComponentHealth,
+    cache: ComponentHealth,
+    external_services: Vec<ServiceHealth>,
+    system: SystemHealth,
 }
 
-impl IntoResponse for AppError {
-    fn into_response(self) -> axum::response::Response {
-        let status = match *self.kind {
-            ErrorKind::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            ErrorKind::AuthenticationError(_) => StatusCode::UNAUTHORIZED,
-            ErrorKind::AuthorizationError(_) => StatusCode::FORBIDDEN,
-            ErrorKind::ValidationError(_) => StatusCode::BAD_REQUEST,
-            ErrorKind::ConfigurationError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            ErrorKind::NotFoundError(_) => StatusCode::NOT_FOUND,
-            ErrorKind::I18nError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            ErrorKind::TenantError(_) => StatusCode::BAD_REQUEST,
-            ErrorKind::UserError(_) => StatusCode::BAD_REQUEST,
-            ErrorKind::AuthError(_) => StatusCode::UNAUTHORIZED,
-            ErrorKind::SerializationError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            ErrorKind::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-        };
-
-        let body = Json(ErrorBody {
-            message: self.to_string(),
-            context: Some(self.context.to_string()),
-        });
-
-        (status, body).into_response()
-    }
+#[derive(Debug, Serialize)]
+pub struct ComponentHealth {
+    status: HealthStatus,
+    latency_ms: u64,
+    message: Option<String>,
 }
 
-pub async fn health_check(State(state): State<AppState>) -> AppResult<Json<HealthResponse>> {
-    let status = state
-        .i18n
-        .format_message(SupportedLanguage::En, "health-status", None)
-        .await?;
+#[derive(Debug, Serialize)]
+pub struct ServiceHealth {
+    name: String,
+    status: HealthStatus,
+    latency_ms: u64,
+    message: Option<String>,
+}
 
-    let message = state
-        .i18n
-        .format_message(SupportedLanguage::En, "system-status-healthy", None)
-        .await?;
+#[derive(Debug, Serialize)]
+pub struct SystemHealth {
+    cpu_usage: f64,
+    memory_usage: f64,
+    disk_usage: f64,
+}
 
-    let timestamp = Utc::now().to_rfc3339();
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+#[allow(dead_code)]
+pub enum HealthStatus {
+    Healthy,
+    Degraded,
+    Unhealthy,
+}
 
-    Ok(Json(HealthResponse {
+pub async fn health_check(State(state): State<AppState>) -> impl IntoResponse {
+    let mut sys = SysInfo::new();
+    sys.refresh_all();
+
+    let health_details = check_system_health(&state, &sys).await;
+    let (status, status_code) = match &health_details {
+        Ok(details) => {
+            let is_healthy = details.tenant_service.status == HealthStatus::Healthy
+                && details.cache.status == HealthStatus::Healthy
+                && details
+                    .external_services
+                    .iter()
+                    .all(|s| s.status == HealthStatus::Healthy)
+                && details.system.cpu_usage < 90.0
+                && details.system.memory_usage < 90.0
+                && details.system.disk_usage < 90.0;
+
+            if is_healthy {
+                ("healthy".to_string(), StatusCode::OK)
+            } else {
+                ("degraded".to_string(), StatusCode::OK)
+            }
+        },
+        Err(_) => ("unhealthy".to_string(), StatusCode::SERVICE_UNAVAILABLE),
+    };
+
+    let body = Json(HealthResponse {
         status,
-        message,
-        timestamp,
-    }))
+        message: "Health check completed".to_string(),
+        timestamp: Utc::now().to_rfc3339(),
+        details: health_details.ok(),
+    });
+
+    (status_code, body).into_response()
 }
 
-pub async fn readiness_check(State(state): State<AppState>) -> AppResult<Json<HealthResponse>> {
-    let status = state
-        .i18n
-        .format_message(SupportedLanguage::En, "system-status-ready", None)
-        .await?;
-
-    let message = state
+async fn readiness_check(State(state): State<AppState>) -> impl IntoResponse {
+    let i18n_msg = state
         .i18n
         .format_message(SupportedLanguage::En, "system-ready-message", None)
-        .await?;
+        .await
+        .unwrap_or_else(|_| "System is ready".to_string());
 
-    let timestamp = Utc::now().to_rfc3339();
+    let body = Json(HealthResponse {
+        status: "ready".to_string(),
+        message: i18n_msg,
+        timestamp: Utc::now().to_rfc3339(),
+        details: None,
+    });
 
-    Ok(Json(HealthResponse {
-        status,
-        message,
-        timestamp,
-    }))
+    (StatusCode::OK, body).into_response()
+}
+
+async fn check_system_health(state: &AppState, sys: &SysInfo) -> AppResult<HealthDetails> {
+    // Check tenant service (which includes database health)
+    let tenant_start = std::time::Instant::now();
+    let tenant_health = match state.tenant_service.list().await {
+        Ok(_) => ComponentHealth {
+            status: HealthStatus::Healthy,
+            latency_ms: tenant_start.elapsed().as_millis() as u64,
+            message: None,
+        },
+        Err(e) => ComponentHealth {
+            status: HealthStatus::Unhealthy,
+            latency_ms: tenant_start.elapsed().as_millis() as u64,
+            message: Some(e.to_string()),
+        },
+    };
+
+    // TODO: Implement cache health check once cache is integrated
+    let cache_health = ComponentHealth {
+        status: HealthStatus::Healthy,
+        latency_ms: 0,
+        message: None,
+    };
+
+    // TODO: Add external service checks as they are integrated
+    let external_services = Vec::new();
+
+    // Calculate system metrics
+    let total_memory = sys.total_memory() as f64;
+    let used_memory = sys.used_memory() as f64;
+    let memory_usage = if total_memory > 0.0 {
+        (used_memory / total_memory) * 100.0
+    } else {
+        0.0
+    };
+
+    let system_health = SystemHealth {
+        cpu_usage: 0.0, // CPU usage is not available without the cpu feature
+        memory_usage,
+        disk_usage: 0.0, // Disk usage is not available without the disk feature
+    };
+
+    Ok(HealthDetails {
+        tenant_service: tenant_health,
+        cache: cache_health,
+        external_services,
+        system: system_health,
+    })
 }

@@ -275,6 +275,7 @@ pub fn get_settings() -> &'static Settings {
     &SETTINGS
 }
 
+#[allow(dead_code)]
 pub fn get_backend_port() -> u16 {
     SETTINGS.server.backend_port
 }

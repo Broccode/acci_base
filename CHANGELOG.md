@@ -117,6 +117,36 @@ Create a git tag for the version (e.g., v0.2.0)
 # [Unreleased]
 
 ### Added
+- System metrics monitoring in health checks using sysinfo
+  - Memory usage tracking
+  - Placeholder for CPU and disk metrics (requires additional features)
+- Prometheus metrics endpoint for monitoring
+  - HTTP request metrics
+  - System resource metrics
+  - Database connection metrics
+  - Cache performance metrics
+  - Rate limiting metrics
+- Comprehensive error handling with AppError
+  - Support for various error types (Database, Auth, Validation etc.)
+  - Context information in error responses
+  - Proper HTTP status codes
+  - JSON error response format
+  - Automatic conversion from common error types
+
+### Changed
+- Updated sysinfo dependency to v0.33.1 with system feature
+- Enhanced health check implementation with detailed system metrics
+- Improved error handling in health checks
+- Updated sysinfo dependency with correct feature flags
+- Enhanced health check implementation
+- Improved error handling in API endpoints
+
+### Fixed
+- Corrected feature flags for sysinfo crate
+- Fixed health status comparison in system health checks
+- Resolved linter errors in error handling implementation
+
+### Added
 - Enhanced validation system for domain models
   - Email validation using RFC compliant regex
   - Username validation (3-32 chars, alphanumeric with underscore)

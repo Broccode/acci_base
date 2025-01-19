@@ -1,31 +1,14 @@
-use axum::{
-    middleware,
-    routing::{get, post},
-    Router,
-};
-use tower_http::trace::TraceLayer;
+use axum::Router;
 
 use crate::{
-    api,
-    common::middleware::{auth_middleware, AuthState},
+    api::{api_routes, not_found::not_found},
+    infrastructure::state::AppState,
 };
 
-pub fn create_router(auth_state: AuthState) -> Router {
+#[allow(dead_code)]
+pub fn create_router(state: AppState) -> Router {
     Router::new()
-        .route("/health", get(api::health_check))
-        .route("/auth/login", get(api::login))
-        .route("/auth/callback", get(api::oauth_callback))
-        .route("/auth/logout", get(api::logout))
-        .route(
-            "/api/v1/*path",
-            get(api::not_found)
-                .post(api::not_found)
-                .with_state(auth_state.clone()),
-        )
-        .layer(middleware::from_fn_with_state(
-            auth_state.clone(),
-            auth_middleware,
-        ))
-        .layer(TraceLayer::new_for_http())
-        .with_state(auth_state)
+        .merge(api_routes())
+        .fallback(not_found)
+        .with_state(state)
 }

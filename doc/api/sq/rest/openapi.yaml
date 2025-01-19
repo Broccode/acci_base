@@ -1,0 +1,190 @@
+openapi: "3.1.3"
+info:
+  title: ACCI Framework REST API
+  version: 1.0.0
+  description: |
+    Dokumentimi i REST API për ACCI Framework.
+    
+    Kjo API ofron endpoints për menaxhimin e aplikacioneve multi-tenant,
+    menaxhimin e përdoruesve, autentifikimin dhe funksione të ndryshme enterprise.
+  contact:
+    name: ACCI Framework Team
+    url: https://github.com/your-org/acci-framework
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: https://api.acci-framework.dev/v1
+    description: Serveri i zhvillimit
+  - url: https://api.acci-framework.com/v1
+    description: Serveri i prodhimit
+
+security:
+  - bearerAuth: []
+  - tenantAuth: []
+
+tags:
+  - name: Authentication
+    description: Endpoints për autentifikim dhe autorizim
+  - name: Users
+    description: Operacionet e menaxhimit të përdoruesve
+  - name: Tenants
+    description: Menaxhimi i multi-tenant
+  - name: Health
+    description: Kontrollet e shëndetit dhe gatishmërisë
+  - name: Metrics
+    description: Metrikat dhe monitorimi i sistemit
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Endpoint i kontrollit të shëndetit
+      description: Kthen statusin e shëndetit të API-së
+      security: []
+      responses:
+        '200':
+          description: Sistemi është i shëndetshëm
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Sistemi nuk është i shëndetshëm
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Hyrja e përdoruesit
+      description: Autentifikon një përdorues dhe kthen token-at e aksesit
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Autentifikimi i suksesshëm
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Autentifikimi dështoi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    tenantAuth:
+      type: apiKey
+      in: header
+      name: X-Tenant-ID
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+          description: Statusi i shëndetit të sistemit
+        version:
+          type: string
+          description: Versioni i API-së
+        timestamp:
+          type: string
+          format: date-time
+          description: Koha e kontrollit
+        checks:
+          type: array
+          description: Lista e kontrolleve të komponentëve
+          items:
+            $ref: '#/components/schemas/HealthCheck'
+
+    HealthCheck:
+      type: object
+      properties:
+        component:
+          type: string
+          description: Emri i komponentit të kontrolluar
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+          description: Statusi i komponentit
+        details:
+          type: object
+          description: Informacione shtesë të statusit
+          additionalProperties: true
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+        - tenant_id
+      properties:
+        email:
+          type: string
+          format: email
+          description: Adresa email e përdoruesit
+        password:
+          type: string
+          format: password
+          description: Fjalëkalimi i përdoruesit
+        tenant_id:
+          type: string
+          format: uuid
+          description: ID e tenant-it
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: Token JWT i aksesit
+        refresh_token:
+          type: string
+          description: Token JWT i rifreskimit
+        token_type:
+          type: string
+          enum: [bearer]
+          description: Lloji i token-it (gjithmonë 'bearer')
+        expires_in:
+          type: integer
+          description: Koha e skadimit në sekonda
+        scope:
+          type: string
+          description: Fusha e autorizimit
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Kodi i gabimit
+        message:
+          type: string
+          description: Mesazhi i gabimit
+        details:
+          type: object
+          description: Detaje shtesë të gabimit
+          additionalProperties: true
+        request_id:
+          type: string
+          description: ID unike e kërkesës 

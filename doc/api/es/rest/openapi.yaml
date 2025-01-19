@@ -1,0 +1,283 @@
+openapi: "3.1.3"
+info:
+  title: ACCI Framework REST API
+  version: 1.0.0
+  description: |
+    Documentación de la API REST para ACCI Framework.
+    
+    Esta API proporciona endpoints para la gestión de aplicaciones multi-tenant,
+    gestión de usuarios, autenticación y varias funcionalidades empresariales.
+  contact:
+    name: ACCI Framework Team
+    url: https://github.com/your-org/acci-framework
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: https://api.acci-framework.dev/v1
+    description: Servidor de desarrollo
+  - url: https://api.acci-framework.com/v1
+    description: Servidor de producción
+
+security:
+  - bearerAuth: []
+  - tenantAuth: []
+
+tags:
+  - name: Authentication
+    description: Endpoints de autenticación y autorización
+  - name: Users
+    description: Operaciones de gestión de usuarios
+  - name: Tenants
+    description: Gestión multi-tenant
+  - name: Health
+    description: Comprobaciones de salud y disponibilidad
+  - name: Metrics
+    description: Métricas y monitorización del sistema
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Endpoint de comprobación de salud
+      description: Devuelve el estado de salud de la API
+      security: []
+      responses:
+        '200':
+          description: El sistema está saludable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: El sistema no está saludable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Inicio de sesión de usuario
+      description: Autentica un usuario y devuelve tokens de acceso
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Autenticación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Fallo en la autenticación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users:
+    get:
+      tags:
+        - Users
+      summary: Listar usuarios
+      description: Obtiene una lista paginada de usuarios
+      parameters:
+        - name: page
+          in: query
+          description: Número de página
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          description: Elementos por página
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Lista de usuarios
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserList'
+
+    post:
+      tags:
+        - Users
+      summary: Crear usuario
+      description: Crea un nuevo usuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: Usuario creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Obtener usuario
+      description: Obtiene los detalles de un usuario específico
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Detalles del usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+    put:
+      tags:
+        - Users
+      summary: Actualizar usuario
+      description: Actualiza los detalles de un usuario específico
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: Usuario actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    tenantAuth:
+      type: apiKey
+      in: header
+      name: X-Tenant-ID
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+          description: Estado de salud del sistema
+        version:
+          type: string
+          description: Versión de la API
+        timestamp:
+          type: string
+          format: date-time
+          description: Marca de tiempo de la comprobación
+        checks:
+          type: array
+          description: Lista de comprobaciones de componentes
+          items:
+            $ref: '#/components/schemas/HealthCheck'
+
+    HealthCheck:
+      type: object
+      properties:
+        component:
+          type: string
+          description: Nombre del componente comprobado
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+          description: Estado del componente
+        details:
+          type: object
+          description: Información adicional del estado
+          additionalProperties: true
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+        - tenant_id
+      properties:
+        email:
+          type: string
+          format: email
+          description: Dirección de correo electrónico del usuario
+        password:
+          type: string
+          format: password
+          description: Contraseña del usuario
+        tenant_id:
+          type: string
+          format: uuid
+          description: ID del tenant
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: Token de acceso JWT
+        refresh_token:
+          type: string
+          description: Token de actualización JWT
+        token_type:
+          type: string
+          enum: [bearer]
+          description: Tipo de token (siempre 'bearer')
+        expires_in:
+          type: integer
+          description: Tiempo de expiración en segundos
+        scope:
+          type: string
+          description: Alcance de los permisos
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Código de error
+        message:
+          type: string
+          description: Mensaje de error
+        details:
+          type: object
+          description: Detalles adicionales del error
+          additionalProperties: true
+        request_id:
+          type: string
+          description: ID único de la solicitud 

@@ -1,0 +1,133 @@
+"""
+ACCI Framework GraphQL API Schema
+"""
+
+"""
+Tipi i input-it për autentifikimin e përdoruesit
+"""
+input LoginInput {
+  """Adresa email e përdoruesit"""
+  email: String!
+  
+  """Fjalëkalimi i përdoruesit"""
+  password: String!
+  
+  """ID e tenant-it"""
+  tenantId: ID!
+}
+
+"""
+Përgjigja e autentifikimit që përmban token-at
+"""
+type AuthPayload {
+  """Token JWT i aksesit"""
+  accessToken: String!
+  
+  """Token JWT i rifreskimit"""
+  refreshToken: String!
+  
+  """Lloji i token-it (gjithmonë 'bearer')"""
+  tokenType: String!
+  
+  """Koha e skadimit të token-it në sekonda"""
+  expiresIn: Int!
+}
+
+"""
+Përgjigja e kontrollit të shëndetit
+"""
+type Health {
+  """Statusi i përgjithshëm i sistemit"""
+  status: HealthStatus!
+  
+  """Versioni i API-së"""
+  version: String!
+  
+  """Koha aktuale"""
+  timestamp: DateTime!
+  
+  """Kontrollet individuale të komponentëve"""
+  checks: [HealthCheck!]!
+}
+
+"""
+Statusi i shëndetit të komponentëve individualë
+"""
+type HealthCheck {
+  """Emri i komponentit"""
+  component: String!
+  
+  """Statusi i komponentit"""
+  status: HealthStatus!
+  
+  """Detaje shtesë për statusin e komponentit"""
+  details: JSON
+}
+
+"""
+Statusi i shëndetit të sistemit
+"""
+enum HealthStatus {
+  HEALTHY
+  UNHEALTHY
+}
+
+"""
+Scalar i personalizuar për të dhënat JSON
+"""
+scalar JSON
+
+"""
+Scalar i personalizuar për DateTime
+"""
+scalar DateTime
+
+type Query {
+  """
+  Merr statusin aktual të shëndetit të sistemit
+  """
+  health: Health!
+  
+  """
+  Merr përdoruesin aktual të autentifikuar
+  """
+  me: User
+}
+
+type Mutation {
+  """
+  Autentifiko një përdorues dhe merr token-at
+  """
+  login(input: LoginInput!): AuthPayload!
+  
+  """
+  Rifresko token-in e aksesit duke përdorur token-in e rifreskimit
+  """
+  refreshToken(token: String!): AuthPayload!
+}
+
+"""
+Objekti i përdoruesit që përfaqëson një përdorues të autentifikuar
+"""
+type User {
+  """Identifikuesi unik"""
+  id: ID!
+  
+  """Adresa email"""
+  email: String!
+  
+  """Emri i plotë i përdoruesit"""
+  name: String!
+  
+  """ID e tenant-it të cilit i përket përdoruesi"""
+  tenantId: ID!
+  
+  """Rolet e përdoruesit brenda tenant-it"""
+  roles: [String!]!
+  
+  """Kur është krijuar"""
+  createdAt: DateTime!
+  
+  """Kur është përditësuar së fundmi"""
+  updatedAt: DateTime!
+} 

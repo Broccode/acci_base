@@ -1,0 +1,274 @@
+"""
+ACCI Framework GraphQL API Schema
+"""
+
+"""
+Input type for user authentication
+"""
+input LoginInput {
+  """Email address of the user"""
+  email: String!
+  
+  """Password of the user"""
+  password: String!
+  
+  """ID of the tenant"""
+  tenantId: ID!
+}
+
+"""
+Authentication response containing tokens
+"""
+type AuthPayload {
+  """JWT access token"""
+  accessToken: String!
+  
+  """JWT refresh token"""
+  refreshToken: String!
+  
+  """Token type (always 'bearer')"""
+  tokenType: String!
+  
+  """Token expiration in seconds"""
+  expiresIn: Int!
+}
+
+"""
+Health check response
+"""
+type Health {
+  """Overall system status"""
+  status: HealthStatus!
+  
+  """API version"""
+  version: String!
+  
+  """Current timestamp"""
+  timestamp: DateTime!
+  
+  """Individual component health checks"""
+  checks: [HealthCheck!]!
+}
+
+"""
+Health status of individual components
+"""
+type HealthCheck {
+  """Name of the component"""
+  component: String!
+  
+  """Status of the component"""
+  status: HealthStatus!
+  
+  """Additional details about the component's health"""
+  details: JSON
+}
+
+"""
+System health status
+"""
+enum HealthStatus {
+  HEALTHY
+  UNHEALTHY
+}
+
+"""
+Custom scalar for JSON data
+"""
+scalar JSON
+
+"""
+Custom scalar for DateTime
+"""
+scalar DateTime
+
+type Query {
+  """
+  Get the current health status of the system
+  """
+  health: Health!
+  
+  """
+  Get the current authenticated user
+  """
+  me: User
+}
+
+type Mutation {
+  """
+  Authenticate a user and receive tokens
+  """
+  login(input: LoginInput!): AuthPayload!
+  
+  """
+  Refresh the access token using a refresh token
+  """
+  refreshToken(token: String!): AuthPayload!
+}
+
+"""
+User object representing an authenticated user
+"""
+type User {
+  """Unique identifier"""
+  id: ID!
+  
+  """Email address"""
+  email: String!
+  
+  """User's full name"""
+  name: String!
+  
+  """Tenant ID the user belongs to"""
+  tenantId: ID!
+  
+  """User's roles within the tenant"""
+  roles: [String!]!
+  
+  """When the user was created"""
+  createdAt: DateTime!
+  
+  """When the user was last updated"""
+  updatedAt: DateTime!
+}
+
+input CreateUserInput {
+  """Email address for the new user"""
+  email: String!
+  """Password for the new user"""
+  password: String!
+  """Full name of the new user"""
+  name: String!
+  """List of roles to assign to the user"""
+  roles: [String!]
+}
+
+input UpdateUserInput {
+  """New email address for the user"""
+  email: String
+  """New name for the user"""
+  name: String
+  """New list of roles for the user"""
+  roles: [String!]
+}
+
+type Tenant {
+  """Unique identifier of the tenant"""
+  id: ID!
+  """Name of the tenant"""
+  name: String!
+  """Domain associated with the tenant"""
+  domain: String!
+  """Custom settings for the tenant"""
+  settings: JSON!
+  """Timestamp when the tenant was created"""
+  createdAt: DateTime!
+  """Timestamp when the tenant was last updated"""
+  updatedAt: DateTime!
+}
+
+input CreateTenantInput {
+  """Name for the new tenant"""
+  name: String!
+  """Domain for the new tenant"""
+  domain: String!
+  """Custom settings for the new tenant"""
+  settings: JSON
+}
+
+input UpdateTenantInput {
+  """New name for the tenant"""
+  name: String
+  """New domain for the tenant"""
+  domain: String
+  """Updated settings for the tenant"""
+  settings: JSON
+}
+
+type Metrics {
+  """CPU usage metrics"""
+  cpu: MetricValue!
+  """Memory usage metrics"""
+  memory: MetricValue!
+  """Request rate metrics"""
+  requestRate: MetricValue!
+  """Error rate metrics"""
+  errorRate: MetricValue!
+  """Response time metrics"""
+  responseTime: MetricValue!
+}
+
+type MetricValue {
+  """Current value of the metric"""
+  value: Float!
+  """Unit of measurement"""
+  unit: String!
+  """Timestamp of measurement"""
+  timestamp: DateTime!
+}
+
+type PageInfo {
+  """Total number of items"""
+  total: Int!
+  """Number of items per page"""
+  perPage: Int!
+  """Current page number"""
+  currentPage: Int!
+  """Total number of pages"""
+  totalPages: Int!
+  """Whether there is a next page"""
+  hasNextPage: Boolean!
+  """Whether there is a previous page"""
+  hasPreviousPage: Boolean!
+}
+
+type Query {
+  """Get a specific user by ID"""
+  user(id: ID!): User
+  
+  """Get a paginated list of users"""
+  users(page: Int = 1, perPage: Int = 20): UserConnection!
+  
+  """Get a specific tenant by ID"""
+  tenant(id: ID!): Tenant
+  
+  """Get a paginated list of tenants"""
+  tenants(page: Int = 1, perPage: Int = 20): TenantConnection!
+  
+  """Get system metrics"""
+  metrics: Metrics!
+}
+
+type Mutation {
+  """Create a new user"""
+  createUser(input: CreateUserInput!): User!
+  
+  """Update an existing user"""
+  updateUser(id: ID!, input: UpdateUserInput!): User!
+  
+  """Delete a user"""
+  deleteUser(id: ID!): Boolean!
+  
+  """Create a new tenant"""
+  createTenant(input: CreateTenantInput!): Tenant!
+  
+  """Update an existing tenant"""
+  updateTenant(id: ID!, input: UpdateTenantInput!): Tenant!
+  
+  """Delete a tenant"""
+  deleteTenant(id: ID!): Boolean!
+}
+
+type UserConnection {
+  """List of users"""
+  nodes: [User!]!
+  """Pagination information"""
+  pageInfo: PageInfo!
+}
+
+type TenantConnection {
+  """List of tenants"""
+  nodes: [Tenant!]!
+  """Pagination information"""
+  pageInfo: PageInfo!
+} 

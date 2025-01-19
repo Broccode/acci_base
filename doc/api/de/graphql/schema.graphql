@@ -1,0 +1,242 @@
+"""
+ACCI Framework GraphQL API Schema
+"""
+
+"""
+Eingabetyp für Benutzerauthentifizierung
+"""
+input LoginInput {
+  """E-Mail-Adresse des Benutzers"""
+  email: String!
+  
+  """Passwort des Benutzers"""
+  password: String!
+  
+  """ID des Mandanten"""
+  tenantId: ID!
+}
+
+"""
+Authentifizierungsantwort mit Tokens
+"""
+type AuthPayload {
+  """JWT-Zugriffstoken"""
+  accessToken: String!
+  
+  """JWT-Aktualisierungstoken"""
+  refreshToken: String!
+  
+  """Tokentyp (immer 'bearer')"""
+  tokenType: String!
+  
+  """Token-Ablaufzeit in Sekunden"""
+  expiresIn: Int!
+}
+
+"""
+Antwort der Gesundheitsprüfung
+"""
+type Health {
+  """Gesamtsystemstatus"""
+  status: HealthStatus!
+  
+  """API-Version"""
+  version: String!
+  
+  """Aktueller Zeitstempel"""
+  timestamp: DateTime!
+  
+  """Einzelne Komponentenprüfungen"""
+  checks: [HealthCheck!]!
+}
+
+"""
+Gesundheitsstatus einzelner Komponenten
+"""
+type HealthCheck {
+  """Name der Komponente"""
+  component: String!
+  
+  """Status der Komponente"""
+  status: HealthStatus!
+  
+  """Zusätzliche Details zum Komponentenstatus"""
+  details: JSON
+}
+
+"""
+Systemgesundheitsstatus
+"""
+enum HealthStatus {
+  HEALTHY
+  UNHEALTHY
+}
+
+"""
+Benutzerdefinierter Skalar für JSON-Daten
+"""
+scalar JSON
+
+"""
+Benutzerdefinierter Skalar für DateTime
+"""
+scalar DateTime
+
+type Query {
+  """
+  Aktuellen Systemgesundheitsstatus abrufen
+  """
+  health: Health!
+  
+  """
+  Aktuell authentifizierten Benutzer abrufen
+  """
+  me: User
+}
+
+type Mutation {
+  """
+  Benutzer authentifizieren und Tokens erhalten
+  """
+  login(input: LoginInput!): AuthPayload!
+  
+  """
+  Zugriffstoken mit Aktualisierungstoken erneuern
+  """
+  refreshToken(token: String!): AuthPayload!
+}
+
+"""
+Benutzerobjekt für einen authentifizierten Benutzer
+"""
+type User {
+  """Eindeutige Kennung"""
+  id: ID!
+  
+  """E-Mail-Adresse"""
+  email: String!
+  
+  """Vollständiger Name des Benutzers"""
+  name: String!
+  
+  """Mandanten-ID, zu der der Benutzer gehört"""
+  tenantId: ID!
+  
+  """Benutzerrollen innerhalb des Mandanten"""
+  roles: [String!]!
+  
+  """Erstellungszeitpunkt"""
+  createdAt: DateTime!
+  
+  """Letzter Aktualisierungszeitpunkt"""
+  updatedAt: DateTime!
+}
+
+input CreateUserInput {
+  """E-Mail-Adresse für den neuen Benutzer"""
+  email: String!
+  """Passwort für den neuen Benutzer"""
+  password: String!
+  """Vollständiger Name des neuen Benutzers"""
+  name: String!
+  """Liste der dem Benutzer zuzuweisenden Rollen"""
+  roles: [String!]
+}
+
+input UpdateUserInput {
+  """Neue E-Mail-Adresse für den Benutzer"""
+  email: String
+  """Neuer Name für den Benutzer"""
+  name: String
+  """Neue Rollenliste für den Benutzer"""
+  roles: [String!]
+}
+
+"""
+Mandantentyp für einen bestimmten Mandanten
+"""
+type Tenant {
+  """Eindeutige Kennung des Mandanten"""
+  id: ID!
+  """Name des Mandanten"""
+  name: String!
+  """Mit dem Mandanten verbundene Domain"""
+  domain: String!
+  """Benutzerdefinierte Einstellungen für den Mandanten"""
+  settings: JSON!
+  """Zeitstempel der Mandantenerstellung"""
+  createdAt: DateTime!
+  """Zeitstempel der letzten Aktualisierung"""
+  updatedAt: DateTime!
+}
+
+input CreateTenantInput {
+  """Name für den neuen Mandanten"""
+  name: String!
+  """Domain für den neuen Mandanten"""
+  domain: String!
+  """Benutzerdefinierte Einstellungen für den neuen Mandanten"""
+  settings: JSON
+}
+
+input UpdateTenantInput {
+  """Neuer Name für den Mandanten"""
+  name: String
+  """Neue Domain für den Mandanten"""
+  domain: String
+  """Aktualisierte Einstellungen für den Mandanten"""
+  settings: JSON
+}
+
+type Metrics {
+  """CPU-Auslastungsmetriken"""
+  cpu: MetricValue!
+  """Speichernutzungsmetriken"""
+  memory: MetricValue!
+  """Anforderungsratenmetriken"""
+  requestRate: MetricValue!
+  """Fehlerratenmetriken"""
+  errorRate: MetricValue!
+  """Antwortzeit-Metriken"""
+  responseTime: MetricValue!
+}
+
+type MetricValue {
+  """Aktueller Wert der Metrik"""
+  value: Float!
+  """Maßeinheit"""
+  unit: String!
+  """Zeitstempel der Messung"""
+  timestamp: DateTime!
+}
+
+# Paginierungstypen
+type PageInfo {
+  """Gesamtanzahl der Elemente"""
+  total: Int!
+  """Anzahl der Elemente pro Seite"""
+  perPage: Int!
+  """Aktuelle Seitennummer"""
+  currentPage: Int!
+  """Gesamtanzahl der Seiten"""
+  totalPages: Int!
+  """Ob es eine nächste Seite gibt"""
+  hasNextPage: Boolean!
+  """Ob es eine vorherige Seite gibt"""
+  hasPreviousPage: Boolean!
+}
+
+# Verbindungstypen für Paginierung
+type UserConnection {
+  """Liste der Benutzer"""
+  nodes: [User!]!
+  """Paginierungsinformationen"""
+  pageInfo: PageInfo!
+}
+
+type TenantConnection {
+  """Liste der Mandanten"""
+  nodes: [Tenant!]!
+  """Paginierungsinformationen"""
+  pageInfo: PageInfo!
+} 

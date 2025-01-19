@@ -1,0 +1,306 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2024-01-19T20:00:00.000Z",
+  "__export_source": "insomnia.desktop.app:v2023.5.8",
+  "resources": [
+    {
+      "_id": "req_root",
+      "parentId": "wrk_acci",
+      "modified": 1705689600000,
+      "created": 1705689600000,
+      "name": "ACCI Framework API",
+      "_type": "workspace"
+    },
+    {
+      "_id": "env_base",
+      "parentId": "req_root",
+      "modified": 1705689600000,
+      "created": 1705689600000,
+      "name": "Base Environment",
+      "data": {
+        "base_url": "https://api.acci-framework.dev/v1",
+        "tenant_id": "your-tenant-id"
+      },
+      "_type": "environment"
+    },
+    {
+      "_id": "req_auth_login",
+      "parentId": "fld_auth",
+      "modified": 1705689600000,
+      "created": 1705689600000,
+      "url": "{{ _.base_url }}/auth/login",
+      "name": "Login",
+      "description": "Authenticate user and receive access tokens",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"your-password\",\n  \"tenant_id\": \"{{tenant_id}}\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "_type": "request"
+    },
+    {
+      "_id": "req_auth_refresh",
+      "parentId": "fld_auth",
+      "modified": 1705689600000,
+      "created": 1705689600000,
+      "url": "{{ _.base_url }}/auth/refresh",
+      "name": "Refresh Token",
+      "description": "Refresh access token using refresh token",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "_type": "request"
+    },
+    {
+      "_id": "req_users_list",
+      "parentId": "fld_users",
+      "modified": 1705689600000,
+      "created": 1705689600000,
+      "url": "{{ _.base_url }}/users",
+      "name": "List Users",
+      "description": "Get paginated list of users",
+      "method": "GET",
+      "parameters": [
+        {
+          "name": "page",
+          "value": "1"
+        },
+        {
+          "name": "per_page",
+          "value": "20"
+        }
+      ],
+      "headers": [
+        {
+          "name": "X-Tenant-ID",
+          "value": "{{tenant_id}}"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{access_token}}"
+      },
+      "_type": "request"
+    },
+    {
+      "_id": "req_users_create",
+      "parentId": "fld_users",
+      "modified": 1705689600000,
+      "created": 1705689600000,
+      "url": "{{ _.base_url }}/users",
+      "name": "Create User",
+      "description": "Create a new user",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"newuser@example.com\",\n  \"password\": \"secure-password\",\n  \"name\": \"New User\",\n  \"roles\": [\"user\"]\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "X-Tenant-ID",
+          "value": "{{tenant_id}}"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{access_token}}"
+      },
+      "_type": "request"
+    },
+    {
+      "_id": "req_users_get",
+      "parentId": "fld_users",
+      "modified": 1705689600000,
+      "created": 1705689600000,
+      "url": "{{ _.base_url }}/users/{{user_id}}",
+      "name": "Get User",
+      "description": "Get user details",
+      "method": "GET",
+      "parameters": [],
+      "headers": [
+        {
+          "name": "X-Tenant-ID",
+          "value": "{{tenant_id}}"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{access_token}}"
+      },
+      "_type": "request"
+    },
+    {
+      "_id": "req_users_update",
+      "parentId": "fld_users",
+      "modified": 1705689600000,
+      "created": 1705689600000,
+      "url": "{{ _.base_url }}/users/{{user_id}}",
+      "name": "Update User",
+      "description": "Update user details",
+      "method": "PUT",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Updated Name\",\n  \"roles\": [\"user\", \"admin\"]\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "X-Tenant-ID",
+          "value": "{{tenant_id}}"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{access_token}}"
+      },
+      "_type": "request"
+    },
+    {
+      "_id": "req_tenants_list",
+      "parentId": "fld_tenants",
+      "modified": 1705689600000,
+      "created": 1705689600000,
+      "url": "{{ _.base_url }}/tenants",
+      "name": "List Tenants",
+      "description": "Get paginated list of tenants",
+      "method": "GET",
+      "parameters": [
+        {
+          "name": "page",
+          "value": "1"
+        },
+        {
+          "name": "per_page",
+          "value": "20"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{access_token}}"
+      },
+      "_type": "request"
+    },
+    {
+      "_id": "req_tenants_create",
+      "parentId": "fld_tenants",
+      "modified": 1705689600000,
+      "created": 1705689600000,
+      "url": "{{ _.base_url }}/tenants",
+      "name": "Create Tenant",
+      "description": "Create a new tenant",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"New Tenant\",\n  \"domain\": \"newtenant.example.com\",\n  \"settings\": {\n    \"theme\": \"light\",\n    \"features\": [\"api\", \"dashboard\"]\n  }\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{access_token}}"
+      },
+      "_type": "request"
+    },
+    {
+      "_id": "req_tenants_get",
+      "parentId": "fld_tenants",
+      "modified": 1705689600000,
+      "created": 1705689600000,
+      "url": "{{ _.base_url }}/tenants/{{tenant_id}}",
+      "name": "Get Tenant",
+      "description": "Get tenant details",
+      "method": "GET",
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{access_token}}"
+      },
+      "_type": "request"
+    },
+    {
+      "_id": "req_tenants_update",
+      "parentId": "fld_tenants",
+      "modified": 1705689600000,
+      "created": 1705689600000,
+      "url": "{{ _.base_url }}/tenants/{{tenant_id}}",
+      "name": "Update Tenant",
+      "description": "Update tenant details",
+      "method": "PUT",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Updated Tenant Name\",\n  \"settings\": {\n    \"theme\": \"dark\",\n    \"features\": [\"api\", \"dashboard\", \"analytics\"]\n  }\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{access_token}}"
+      },
+      "_type": "request"
+    },
+    {
+      "_id": "req_health",
+      "parentId": "fld_health",
+      "modified": 1705689600000,
+      "created": 1705689600000,
+      "url": "{{ _.base_url }}/health",
+      "name": "Health Check",
+      "description": "Get system health status",
+      "method": "GET",
+      "parameters": [],
+      "_type": "request"
+    },
+    {
+      "_id": "req_metrics",
+      "parentId": "fld_health",
+      "modified": 1705689600000,
+      "created": 1705689600000,
+      "url": "{{ _.base_url }}/metrics",
+      "name": "Get Metrics",
+      "description": "Get system metrics",
+      "method": "GET",
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{access_token}}"
+      },
+      "_type": "request"
+    }
+  ]
+} 

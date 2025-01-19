@@ -28,12 +28,12 @@ jsonwebtoken = "9.3.0"
 argon2 = "0.5.3"
 keycloak = "26.0.700"
 openid = "0.16.1"
-oauth2 = "4.4"
-oso = "0.27.0"
-polar-core = "0.27.0"
+oauth2 = "4.4.2"
+oso = "0.27.3"
+polar-core = "0.27.3"
 redis = { version = "0.28.1", features = ["tokio-comp", "connection-manager"] }
-reqwest = { version = "0.12", features = ["json"] }
-headers = "0.4"
+reqwest = { version = "0.12.12", features = ["json"] }
+headers = "0.4.0"
 
 # Logging & Metrics
 tracing = "0.1.41"
@@ -47,10 +47,10 @@ anyhow = "1.0.95"
 
 # Utilities
 serde = { version = "1.0.217", features = ["derive"] }
-serde_json = "1.0.135"
+serde_json = "1.0.136"
 chrono = { version = "0.4.39", features = ["serde"] }
 uuid = { version = "1.12.0", features = ["v4", "serde"] }
-config = { version = "0.15.5", features = ["toml"] }
+config = { version = "0.15.6", features = ["toml"] }
 dotenvy = "0.15.7"
 once_cell = "1.20.2"
 fluent = "0.16.1"
@@ -60,8 +60,8 @@ unic-langid = "0.9.5"
 bytes = "1.9.0"
 http-body-util = "0.1.2"
 intl-memoizer = "0.5.2"
-lazy_static = "1.4"
-regex = "1.10"
+lazy_static = "1.5.0"
+regex = "1.11.1"
 sysinfo = { version = "0.33.1", features = ["component", "disk", "system"] }
 axum-core = "0.5.0"
 

@@ -45,40 +45,78 @@ jobs:
       - name: Set up Cosign
         uses: sigstore/cosign-installer@v3.1.1
 
-      - name: Build and push
+      # Build for AMD64
+      - name: Build AMD64 image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./docker/Dockerfile.prod
-          platforms: ${{ env.PLATFORMS }}
+          platforms: linux/amd64
           push: false
           load: true
-          tags: acci:latest
+          tags: acci:amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Generate SBOM
+      # Build for PPC64LE
+      - name: Build PPC64LE image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile.prod
+          platforms: linux/ppc64le
+          push: false
+          load: true
+          tags: acci:ppc64le
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Generate SBOM for AMD64
         uses: anchore/sbom-action@v0
         with:
-          image: acci:latest
+          image: acci:amd64
           format: cyclonedx-json
-          output-file: ./container-bom.json
+          output-file: ./container-bom-amd64.json
 
-      - name: Run Trivy vulnerability scanner
+      - name: Generate SBOM for PPC64LE
+        uses: anchore/sbom-action@v0
+        with:
+          image: acci:ppc64le
+          format: cyclonedx-json
+          output-file: ./container-bom-ppc64le.json
+
+      - name: Run Trivy vulnerability scanner for AMD64
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: acci:latest
+          image-ref: acci:amd64
           format: sarif
-          output: trivy-results.sarif
+          output: trivy-results-amd64.sarif
           severity: CRITICAL,HIGH,MEDIUM
 
-      - name: Run Trivy config scanner
+      - name: Run Trivy vulnerability scanner for PPC64LE
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: acci:ppc64le
+          format: sarif
+          output: trivy-results-ppc64le.sarif
+          severity: CRITICAL,HIGH,MEDIUM
+
+      - name: Run Trivy config scanner for AMD64
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: config
-          scan-ref: acci:latest
+          scan-ref: acci:amd64
           format: sarif
-          output: trivy-config-results.sarif
+          output: trivy-config-results-amd64.sarif
+          severity: CRITICAL,HIGH,MEDIUM
+
+      - name: Run Trivy config scanner for PPC64LE
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: acci:ppc64le
+          format: sarif
+          output: trivy-config-results-ppc64le.sarif
           severity: CRITICAL,HIGH,MEDIUM
 
       - name: Run Trivy filesystem scanner
@@ -94,14 +132,14 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         if: success()
         with:
-          sarif_file: trivy-results.sarif
+          sarif_file: trivy-results-*.sarif
           category: trivy-vuln
 
       - name: Upload Trivy config results
         uses: github/codeql-action/upload-sarif@v3
         if: success()
         with:
-          sarif_file: trivy-config-results.sarif
+          sarif_file: trivy-config-results-*.sarif
           category: trivy-config
 
       - name: Upload Trivy filesystem results
@@ -111,22 +149,33 @@ jobs:
           sarif_file: trivy-fs-results.sarif
           category: trivy-fs
 
-      - name: Run Docker Scout
+      - name: Run Docker Scout for AMD64
         uses: docker/scout-action@v1
         with:
           command: quickview,cves,recommendations
-          image: acci:latest
+          image: acci:amd64
           only-severities: critical,high
           exit-code: true
           summary: true
           format: sarif
-          sarif-file: docker-scout-results.sarif
+          sarif-file: docker-scout-results-amd64.sarif
+
+      - name: Run Docker Scout for PPC64LE
+        uses: docker/scout-action@v1
+        with:
+          command: quickview,cves,recommendations
+          image: acci:ppc64le
+          only-severities: critical,high
+          exit-code: true
+          summary: true
+          format: sarif
+          sarif-file: docker-scout-results-ppc64le.sarif
 
       - name: Upload Docker Scout results
         uses: github/codeql-action/upload-sarif@v3
         if: success()
         with:
-          sarif_file: docker-scout-results.sarif
+          sarif_file: docker-scout-results-*.sarif
           category: docker-scout
 
   sign-image:
@@ -137,5 +186,8 @@ jobs:
       packages: write
       id-token: write
     steps:
-      - name: Sign the image with Cosign
-        run: cosign sign --yes acci:latest
+      - name: Sign AMD64 image
+        run: cosign sign --yes acci:amd64
+
+      - name: Sign PPC64LE image
+        run: cosign sign --yes acci:ppc64le

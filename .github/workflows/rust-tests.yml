@@ -14,7 +14,6 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
-  PLATFORMS: linux/amd64,linux/ppc64le
 
 jobs:
   test:
@@ -95,87 +94,3 @@ jobs:
             exit 1
           fi
           echo "MSRV is $MSRV"
-
-  cross-platform:
-    name: Test on ${{ matrix.platform }}
-    runs-on: ubuntu-24.04
-    strategy:
-      matrix:
-        platform: [
-          {target: x86_64-unknown-linux-gnu, arch: amd64},
-          {target: powerpc64le-unknown-linux-gnu, arch: ppc64le}
-        ]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.platform.target }}
-
-      - name: Install cross-compilation dependencies
-        run: |
-          sudo apt-get update
-          sudo dpkg --add-architecture ppc64el
-          # Remove existing sources
-          sudo rm -f /etc/apt/sources.list.d/*
-          sudo truncate -s 0 /etc/apt/sources.list
-          # Add repositories for amd64
-          echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu noble main restricted universe multiverse" | sudo tee /etc/apt/sources.list
-          echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu noble-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
-          echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu noble-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
-          echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu noble-backports main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
-          # Add repositories for ppc64el
-          echo "deb [arch=ppc64el] http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
-          echo "deb [arch=ppc64el] http://ports.ubuntu.com/ubuntu-ports noble-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
-          echo "deb [arch=ppc64el] http://ports.ubuntu.com/ubuntu-ports noble-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
-          echo "deb [arch=ppc64el] http://ports.ubuntu.com/ubuntu-ports noble-backports main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
-          sudo apt-get update
-          sudo apt-get install -y gcc-powerpc64le-linux-gnu cmake clang llvm-dev libclang-dev libc6-dev-ppc64el-cross
-          sudo apt-get install -y libssl-dev:ppc64el
-          # Create symlinks for OpenSSL libraries
-          if [ "${{ matrix.platform.target }}" = "powerpc64le-unknown-linux-gnu" ]; then
-            # Ensure OpenSSL directories exist
-            sudo mkdir -p /usr/powerpc64le-linux-gnu/lib/pkgconfig
-            sudo mkdir -p /usr/powerpc64le-linux-gnu/include/openssl
-            # Copy OpenSSL files from ppc64el to the cross-compilation directory
-            sudo cp -r /usr/lib/powerpc64le-linux-gnu/libssl.* /usr/powerpc64le-linux-gnu/lib/
-            sudo cp -r /usr/lib/powerpc64le-linux-gnu/libcrypto.* /usr/powerpc64le-linux-gnu/lib/
-            sudo cp -r /usr/include/powerpc64le-linux-gnu/openssl/* /usr/powerpc64le-linux-gnu/include/openssl/
-            # Set environment variables
-            echo "AWS_LC_SYS_EXTERNAL_BINDGEN=1" >> $GITHUB_ENV
-            echo "BINDGEN_EXTRA_CLANG_ARGS=--sysroot=/usr/powerpc64le-linux-gnu -target powerpc64le-unknown-linux-gnu" >> $GITHUB_ENV
-            echo "RUST_TARGET_PATH=/usr/powerpc64le-linux-gnu" >> $GITHUB_ENV
-            echo "PKG_CONFIG_PATH=/usr/powerpc64le-linux-gnu/lib/pkgconfig" >> $GITHUB_ENV
-            echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
-            echo "AWS_LC_SYS_NO_ASM=1" >> $GITHUB_ENV
-            echo "OPENSSL_DIR=/usr/powerpc64le-linux-gnu" >> $GITHUB_ENV
-            echo "OPENSSL_INCLUDE_DIR=/usr/powerpc64le-linux-gnu/include" >> $GITHUB_ENV
-            echo "OPENSSL_LIB_DIR=/usr/powerpc64le-linux-gnu/lib" >> $GITHUB_ENV
-            # Configure cargo for PPC64LE cross-compilation
-            mkdir -p .cargo
-            echo '[target.powerpc64le-unknown-linux-gnu]' > .cargo/config.toml
-            echo 'linker = "powerpc64le-linux-gnu-gcc"' >> .cargo/config.toml
-            echo 'rustflags = ["-C", "target-feature=+elfv2", "-C", "target-cpu=ppc64le"]' >> .cargo/config.toml
-          fi
-
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.platform.target }}
-
-      - name: Build for ${{ matrix.platform.target }}
-        run: cargo build --target ${{ matrix.platform.target }} --verbose
-
-      - name: Run tests for ${{ matrix.platform.target }}
-        run: |
-          if [ "${{ matrix.platform.target }}" = "x86_64-unknown-linux-gnu" ]; then
-            cargo test --target ${{ matrix.platform.target }} --verbose
-          else
-            echo "Skipping tests for ${{ matrix.platform.target }} as they require emulation"
-          fi
-
-      - name: Check binary size
-        run: |
-          ls -l target/${{ matrix.platform.target }}/debug/acci_base

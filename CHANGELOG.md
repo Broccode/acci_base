@@ -127,6 +127,14 @@ Create a git tag for the version (e.g., v0.2.0)
   - Optimized Dockerfile for better BuildKit compatibility
   - Added GitHub Container Registry integration for image storage
   - Enhanced security scanning workflow with registry-based image handling
+- Enhanced database connection pool management
+  - Fixed configuration loading to use environment settings
+  - Optimized pool settings for development environment
+  - Added SQL statement logging in debug mode
+  - Enhanced connection pool logging and monitoring
+  - Added connection health check on startup
+  - Improved error handling and reporting
+- Updated tenant route parameter syntax from `:id` to `{id}` to comply with Axum 0.8+ requirements
 
 ### Fixed
 - Resolved cross-compilation issues by switching to native Docker multi-platform builds
@@ -512,6 +520,19 @@ Create a git tag for the version (e.g., v0.2.0)
   - Added SARIF output for Docker Scout results
   - Improved security scanning results visualization in GitHub
   - Added automated Docker Hub authentication for security scans
+
+### Added
+- Database connection pool configuration
+  - Configurable max and min connections
+  - Connection timeouts and lifecycle settings
+  - Environment-specific pool configurations
+  - Enhanced connection pool logging
+
+### Changed
+- Enhanced database connection management
+  - Optimized pool settings for different environments
+  - Improved connection timeout handling
+  - Better resource utilization in connection pool
 
 ## [0.1.0] - 2024-01-01
 

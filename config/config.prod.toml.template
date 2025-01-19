@@ -10,6 +10,12 @@ port = 5432
 name = "acci"
 user = "acci"
 password = "acci"
+max_connections = 100
+min_connections = 10
+connect_timeout = 10
+acquire_timeout = 8
+idle_timeout = 300
+max_lifetime = 1800
 
 [redis]
 url = "redis://redis:6379"

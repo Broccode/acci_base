@@ -54,7 +54,7 @@ pub fn tenant_routes() -> Router<AppState> {
     Router::new()
         .route("/tenants", get(list_tenants).post(create_tenant))
         .route(
-            "/tenants/:id",
+            "/tenants/{id}",
             get(get_tenant).put(update_tenant).delete(delete_tenant),
         )
 }

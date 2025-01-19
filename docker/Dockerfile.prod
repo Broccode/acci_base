@@ -113,8 +113,14 @@ RUN case "$TARGETPLATFORM" in \
         cargo build --release --target x86_64-unknown-linux-gnu \
         ;; \
     "linux/ppc64le")  \
-        PKG_CONFIG_SYSROOT_DIR=/usr/lib/powerpc64le-linux-gnu \
-        PKG_CONFIG_PATH=/usr/lib/powerpc64le-linux-gnu/pkgconfig \
+        export OPENSSL_DIR=/usr/powerpc64le-linux-gnu && \
+        export OPENSSL_LIB_DIR=/usr/powerpc64le-linux-gnu/lib && \
+        export OPENSSL_INCLUDE_DIR=/usr/powerpc64le-linux-gnu/include && \
+        export PKG_CONFIG_SYSROOT_DIR=/usr/powerpc64le-linux-gnu && \
+        export PKG_CONFIG_PATH=/usr/powerpc64le-linux-gnu/lib/pkgconfig && \
+        export PKG_CONFIG_ALLOW_CROSS=1 && \
+        export POWERPC64LE_UNKNOWN_LINUX_GNU_OPENSSL_LIB_DIR=/usr/powerpc64le-linux-gnu/lib && \
+        export POWERPC64LE_UNKNOWN_LINUX_GNU_OPENSSL_INCLUDE_DIR=/usr/powerpc64le-linux-gnu/include && \
         cargo clippy --all-features -- -D warnings && \
         cargo build --release --target powerpc64le-unknown-linux-gnu \
         ;; \

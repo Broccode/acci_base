@@ -45,9 +45,10 @@ RUN dpkg --add-architecture ppc64el && \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up OpenSSL for cross-compilation
-RUN mkdir -p /usr/powerpc64le-linux-gnu && \
-    ln -s /usr/lib/powerpc64le-linux-gnu/libssl.so /usr/powerpc64le-linux-gnu/ && \
-    ln -s /usr/lib/powerpc64le-linux-gnu/libcrypto.so /usr/powerpc64le-linux-gnu/
+RUN mkdir -p /usr/powerpc64le-linux-gnu/lib && \
+    ln -s /usr/lib/powerpc64le-linux-gnu/libssl.so.3 /usr/powerpc64le-linux-gnu/lib/libssl.so && \
+    ln -s /usr/lib/powerpc64le-linux-gnu/libcrypto.so.3 /usr/powerpc64le-linux-gnu/lib/libcrypto.so && \
+    ln -s /usr/include/powerpc64le-linux-gnu/openssl /usr/powerpc64le-linux-gnu/include
 
 # Install bindgen CLI
 RUN cargo install --locked bindgen-cli
@@ -82,6 +83,8 @@ RUN case "$TARGETPLATFORM" in \
         RUSTFLAGS="-C target-feature=+crt-static" \
         PKG_CONFIG_ALLOW_CROSS=1 \
         OPENSSL_DIR=/usr/powerpc64le-linux-gnu \
+        OPENSSL_INCLUDE_DIR=/usr/include/powerpc64le-linux-gnu \
+        OPENSSL_LIB_DIR=/usr/lib/powerpc64le-linux-gnu \
         PKG_CONFIG_PATH=/usr/lib/powerpc64le-linux-gnu/pkgconfig \
         PKG_CONFIG_SYSROOT_DIR=/ \
         cargo +nightly build --release --target powerpc64le-unknown-linux-gnu -Z build-std=std,panic_abort ;; \

@@ -26,7 +26,13 @@ RUN apt-get update && \
     libssl-dev \
     cmake \
     gcc-powerpc64le-linux-gnu \
+    clang \
+    llvm \
+    libclang-dev \
     && rm -rf /var/lib/apt/lists/*
+
+# Install bindgen CLI
+RUN cargo install --locked bindgen-cli
 
 # Create appuser
 RUN adduser --no-create-home --disabled-password --gecos "" appuser
@@ -38,17 +44,19 @@ COPY rustfmt.toml .
 # Build dependencies - this is the caching Docker layer!
 RUN cargo chef cook --recipe-path recipe.json
 
-# Build application with platform-specific target
+# Build application with platform-specific target and bindgen feature
 COPY . .
 RUN case "$TARGETPLATFORM" in \
     "linux/amd64") \
         echo "Building for amd64" && \
-        cargo clippy --target x86_64-unknown-linux-gnu --all-features -- -D warnings && \
-        cargo build --release --target x86_64-unknown-linux-gnu ;; \
+        BINDGEN_EXTRA_CLANG_ARGS="-target x86_64-unknown-linux-gnu" \
+        cargo clippy --target x86_64-unknown-linux-gnu --all-features --features bindgen -- -D warnings && \
+        cargo build --release --target x86_64-unknown-linux-gnu --features bindgen ;; \
     "linux/ppc64le") \
         echo "Building for ppc64le" && \
-        cargo clippy --target powerpc64le-unknown-linux-gnu --all-features -- -D warnings && \
-        cargo build --release --target powerpc64le-unknown-linux-gnu ;; \
+        BINDGEN_EXTRA_CLANG_ARGS="-target powerpc64le-unknown-linux-gnu" \
+        cargo clippy --target powerpc64le-unknown-linux-gnu --all-features --features bindgen -- -D warnings && \
+        cargo build --release --target powerpc64le-unknown-linux-gnu --features bindgen ;; \
     esac
 
 # Generate SBOM with platform info
@@ -72,12 +80,7 @@ FROM gcr.io/distroless/cc-debian12:nonroot
 ARG TARGETPLATFORM
 COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /app/bom.json /app/bom.json
-RUN case "$TARGETPLATFORM" in \
-    "linux/amd64") \
-        COPY --from=builder /app/target/x86_64-unknown-linux-gnu/release/acci_base /app/acci_base ;; \
-    "linux/ppc64le") \
-        COPY --from=builder /app/target/powerpc64le-unknown-linux-gnu/release/acci_base /app/acci_base ;; \
-    esac
+COPY --from=builder /app/target/*/release/acci_base /app/acci_base
 
 # Use non-root user
 USER appuser

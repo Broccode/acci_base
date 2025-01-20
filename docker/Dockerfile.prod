@@ -6,6 +6,17 @@ COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS builder
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+RUN echo "Building on $BUILDPLATFORM, targeting $TARGETPLATFORM"
+
+# Set up cross-compilation
+RUN case "$TARGETPLATFORM" in \
+    "linux/amd64") echo "Setting up amd64 build" && rustup target add x86_64-unknown-linux-gnu ;; \
+    "linux/ppc64le") echo "Setting up ppc64le build" && rustup target add powerpc64le-unknown-linux-gnu ;; \
+    *) echo "Unsupported platform: $TARGETPLATFORM" && exit 1 ;; \
+    esac
+
 COPY --from=planner /app/recipe.json recipe.json
 
 # Install system dependencies
@@ -14,6 +25,7 @@ RUN apt-get update && \
     pkg-config \
     libssl-dev \
     cmake \
+    gcc-powerpc64le-linux-gnu \
     && rm -rf /var/lib/apt/lists/*
 
 # Create appuser
@@ -26,14 +38,27 @@ COPY rustfmt.toml .
 # Build dependencies - this is the caching Docker layer!
 RUN cargo chef cook --recipe-path recipe.json
 
-# Build application
+# Build application with platform-specific target
 COPY . .
-RUN cargo clippy --all-features -- -D warnings && \
-    cargo build --release
+RUN case "$TARGETPLATFORM" in \
+    "linux/amd64") \
+        echo "Building for amd64" && \
+        cargo clippy --target x86_64-unknown-linux-gnu --all-features -- -D warnings && \
+        cargo build --release --target x86_64-unknown-linux-gnu ;; \
+    "linux/ppc64le") \
+        echo "Building for ppc64le" && \
+        cargo clippy --target powerpc64le-unknown-linux-gnu --all-features -- -D warnings && \
+        cargo build --release --target powerpc64le-unknown-linux-gnu ;; \
+    esac
 
-# Generate SBOM
+# Generate SBOM with platform info
 RUN cargo install cargo-cyclonedx && \
-    cargo cyclonedx -f json --override-filename bom
+    case "$TARGETPLATFORM" in \
+    "linux/amd64") ARCH="amd64" ;; \
+    "linux/ppc64le") ARCH="ppc64le" ;; \
+    esac && \
+    cargo cyclonedx -f json --output bom-$ARCH.json && \
+    mv bom-$ARCH.json bom.json
 
 # Security scan stage
 FROM aquasec/trivy:latest AS security-scan
@@ -43,10 +68,16 @@ RUN trivy fs --severity HIGH,CRITICAL --exit-code 1 /app
 # Final stage
 FROM gcr.io/distroless/cc-debian12:nonroot
 
-# Copy binary, SBOM and user info
-COPY --from=builder /app/target/release/acci_base /app/acci_base
-COPY --from=builder /app/bom.json /app/bom.json
+# Copy binary, SBOM and user info based on platform
+ARG TARGETPLATFORM
 COPY --from=builder /etc/passwd /etc/passwd
+COPY --from=builder /app/bom.json /app/bom.json
+RUN case "$TARGETPLATFORM" in \
+    "linux/amd64") \
+        COPY --from=builder /app/target/x86_64-unknown-linux-gnu/release/acci_base /app/acci_base ;; \
+    "linux/ppc64le") \
+        COPY --from=builder /app/target/powerpc64le-unknown-linux-gnu/release/acci_base /app/acci_base ;; \
+    esac
 
 # Use non-root user
 USER appuser
@@ -57,5 +88,8 @@ ENV RUST_LOG=info
 
 ARG SERVER_BACKEND_PORT=3333
 EXPOSE ${SERVER_BACKEND_PORT}
+
+HEALTHCHECK --interval=30s --timeout=3s \
+    CMD curl -f http://localhost:${SERVER_BACKEND_PORT}/health || exit 1
 
 ENTRYPOINT ["/app/acci_base"]

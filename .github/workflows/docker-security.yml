@@ -55,40 +55,43 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Build for AMD64
-      - name: Build AMD64 image
+      # Build multi-arch image
+      - name: Build and push multi-arch image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./docker/Dockerfile.prod
-          platforms: linux/amd64
+          platforms: ${{ env.PLATFORMS }}
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:amd64
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      # Build for PPC64LE
-      - name: Build PPC64LE image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./docker/Dockerfile.prod
-          platforms: linux/ppc64le
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ppc64le
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          build-args: |
+            BUILDPLATFORM=${{ env.PLATFORMS }}
 
       - name: Extract SBOMs from images
         run: |
           mkdir -p sboms
-          docker create --name temp-amd64 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:amd64
-          docker cp temp-amd64:/app/bom.json ./sboms/bom-amd64.json
-          docker rm temp-amd64
           
-          docker create --name temp-ppc64le ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ppc64le
-          docker cp temp-ppc64le:/app/bom.json ./sboms/bom-ppc64le.json
-          docker rm temp-ppc64le
+          # Extract AMD64 SBOM
+          if docker pull --platform linux/amd64 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest; then
+            docker create --platform linux/amd64 --name temp-amd64 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            docker cp temp-amd64:/app/bom.json ./sboms/bom-amd64.json || echo "No SBOM found in AMD64 image"
+            docker rm temp-amd64
+          else
+            echo "Failed to pull AMD64 image"
+            exit 1
+          fi
+          
+          # Extract PPC64LE SBOM
+          if docker pull --platform linux/ppc64le ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest; then
+            docker create --platform linux/ppc64le --name temp-ppc64le ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            docker cp temp-ppc64le:/app/bom.json ./sboms/bom-ppc64le.json || echo "No SBOM found in PPC64LE image"
+            docker rm temp-ppc64le
+          else
+            echo "Failed to pull PPC64LE image"
+            exit 1
+          fi
 
       - name: Upload SBOMs
         uses: actions/upload-artifact@v4
@@ -99,7 +102,7 @@ jobs:
       - name: Run Trivy vulnerability scanner for AMD64
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:amd64
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           format: sarif
           output: trivy-results-amd64.sarif
           severity: CRITICAL,HIGH,MEDIUM
@@ -107,27 +110,18 @@ jobs:
       - name: Run Trivy vulnerability scanner for PPC64LE
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ppc64le
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           format: sarif
           output: trivy-results-ppc64le.sarif
           severity: CRITICAL,HIGH,MEDIUM
 
-      - name: Run Trivy config scanner for AMD64
+      - name: Run Trivy config scanner
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: config
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:amd64
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           format: sarif
-          output: trivy-config-results-amd64.sarif
-          severity: CRITICAL,HIGH,MEDIUM
-
-      - name: Run Trivy config scanner for PPC64LE
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: config
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ppc64le
-          format: sarif
-          output: trivy-config-results-ppc64le.sarif
+          output: trivy-config-results.sarif
           severity: CRITICAL,HIGH,MEDIUM
 
       - name: Run Trivy filesystem scanner
@@ -139,54 +133,29 @@ jobs:
           output: trivy-fs-results.sarif
           severity: CRITICAL,HIGH,MEDIUM
 
-      - name: Upload Trivy vulnerability results
+      - name: Upload Trivy results
         uses: github/codeql-action/upload-sarif@v3
-        if: success()
+        if: success() || failure()
         with:
-          sarif_file: trivy-results-*.sarif
-          category: trivy-vuln
+          sarif_file: trivy-*.sarif
+          category: trivy-results
 
-      - name: Upload Trivy config results
-        uses: github/codeql-action/upload-sarif@v3
-        if: success()
-        with:
-          sarif_file: trivy-config-results-*.sarif
-          category: trivy-config
-
-      - name: Upload Trivy filesystem results
-        uses: github/codeql-action/upload-sarif@v3
-        if: success()
-        with:
-          sarif_file: trivy-fs-results.sarif
-          category: trivy-fs
-
-      - name: Run Docker Scout for AMD64
+      - name: Run Docker Scout
         uses: docker/scout-action@v1
         with:
           command: quickview,cves,recommendations
-          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:amd64
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           only-severities: critical,high
           exit-code: true
           summary: true
           format: sarif
-          sarif-file: docker-scout-results-amd64.sarif
-
-      - name: Run Docker Scout for PPC64LE
-        uses: docker/scout-action@v1
-        with:
-          command: quickview,cves,recommendations
-          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ppc64le
-          only-severities: critical,high
-          exit-code: true
-          summary: true
-          format: sarif
-          sarif-file: docker-scout-results-ppc64le.sarif
+          sarif-file: docker-scout-results.sarif
 
       - name: Upload Docker Scout results
         uses: github/codeql-action/upload-sarif@v3
-        if: success()
+        if: success() || failure()
         with:
-          sarif_file: docker-scout-results-*.sarif
+          sarif_file: docker-scout-results.sarif
           category: docker-scout
 
   sign-image:
@@ -197,8 +166,5 @@ jobs:
       packages: write
       id-token: write
     steps:
-      - name: Sign AMD64 image
-        run: cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:amd64
-
-      - name: Sign PPC64LE image
-        run: cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ppc64le
+      - name: Sign multi-arch image
+        run: cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest

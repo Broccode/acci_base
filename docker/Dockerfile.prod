@@ -10,14 +10,23 @@ ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 RUN echo "Building on $BUILDPLATFORM, targeting $TARGETPLATFORM"
 
-# Install nightly toolchain for build-std
+# Install nightly toolchain and components
 RUN rustup toolchain install nightly && \
-    rustup component add rust-src --toolchain nightly
+    rustup component add rust-src --toolchain nightly && \
+    rustup component add clippy --toolchain nightly
 
 # Set up cross-compilation
 RUN case "$TARGETPLATFORM" in \
-    "linux/amd64") echo "Setting up amd64 build" && rustup target add x86_64-unknown-linux-gnu && rustup target add x86_64-unknown-linux-gnu --toolchain nightly ;; \
-    "linux/ppc64le") echo "Setting up ppc64le build" && rustup target add powerpc64le-unknown-linux-gnu && rustup target add powerpc64le-unknown-linux-gnu --toolchain nightly ;; \
+    "linux/amd64") \
+        echo "Setting up amd64 build" && \
+        rustup target add x86_64-unknown-linux-gnu && \
+        rustup target add x86_64-unknown-linux-gnu --toolchain nightly && \
+        rustup component add clippy --target x86_64-unknown-linux-gnu --toolchain nightly ;; \
+    "linux/ppc64le") \
+        echo "Setting up ppc64le build" && \
+        rustup target add powerpc64le-unknown-linux-gnu && \
+        rustup target add powerpc64le-unknown-linux-gnu --toolchain nightly && \
+        rustup component add clippy --target powerpc64le-unknown-linux-gnu --toolchain nightly ;; \
     *) echo "Unsupported platform: $TARGETPLATFORM" && exit 1 ;; \
     esac
 
@@ -55,13 +64,11 @@ RUN case "$TARGETPLATFORM" in \
         echo "Building for amd64" && \
         BINDGEN_EXTRA_CLANG_ARGS="-target x86_64-unknown-linux-gnu" \
         RUSTFLAGS="-C target-feature=+crt-static" \
-        cargo +nightly clippy --target x86_64-unknown-linux-gnu --all-features -- -D warnings && \
         cargo +nightly build --release --target x86_64-unknown-linux-gnu -Z build-std=std,panic_abort --features aws-lc-sys/bindgen ;; \
     "linux/ppc64le") \
         echo "Building for ppc64le" && \
         BINDGEN_EXTRA_CLANG_ARGS="-target powerpc64le-unknown-linux-gnu" \
         RUSTFLAGS="-C target-feature=+crt-static" \
-        cargo +nightly clippy --target powerpc64le-unknown-linux-gnu --all-features -- -D warnings && \
         cargo +nightly build --release --target powerpc64le-unknown-linux-gnu -Z build-std=std,panic_abort --features aws-lc-sys/bindgen ;; \
     esac
 

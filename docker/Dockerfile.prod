@@ -29,17 +29,25 @@ RUN case "$TARGETPLATFORM" in \
 
 COPY --from=planner /app/recipe.json recipe.json
 
-# Install system dependencies
-RUN apt-get update && \
+# Install system dependencies and cross-compilation tools
+RUN dpkg --add-architecture ppc64el && \
+    apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
     pkg-config \
     libssl-dev \
+    libssl-dev:ppc64el \
     cmake \
     gcc-powerpc64le-linux-gnu \
     clang \
     llvm \
     libclang-dev \
+    crossbuild-essential-ppc64el \
     && rm -rf /var/lib/apt/lists/*
+
+# Set up OpenSSL for cross-compilation
+RUN mkdir -p /usr/powerpc64le-linux-gnu && \
+    ln -s /usr/lib/powerpc64le-linux-gnu/libssl.so /usr/powerpc64le-linux-gnu/ && \
+    ln -s /usr/lib/powerpc64le-linux-gnu/libcrypto.so /usr/powerpc64le-linux-gnu/
 
 # Install bindgen CLI
 RUN cargo install --locked bindgen-cli
@@ -60,16 +68,22 @@ COPY . .
 # Enable bindgen for aws-lc-sys
 ENV AWS_LC_BINDGEN=1
 
+# Build with platform-specific configuration
 RUN case "$TARGETPLATFORM" in \
     "linux/amd64") \
         echo "Building for amd64" && \
         BINDGEN_EXTRA_CLANG_ARGS="-target x86_64-unknown-linux-gnu" \
         RUSTFLAGS="-C target-feature=+crt-static" \
+        PKG_CONFIG_ALLOW_CROSS=1 \
         cargo +nightly build --release --target x86_64-unknown-linux-gnu -Z build-std=std,panic_abort ;; \
     "linux/ppc64le") \
         echo "Building for ppc64le" && \
         BINDGEN_EXTRA_CLANG_ARGS="-target powerpc64le-unknown-linux-gnu" \
         RUSTFLAGS="-C target-feature=+crt-static" \
+        PKG_CONFIG_ALLOW_CROSS=1 \
+        OPENSSL_DIR=/usr/powerpc64le-linux-gnu \
+        PKG_CONFIG_PATH=/usr/lib/powerpc64le-linux-gnu/pkgconfig \
+        PKG_CONFIG_SYSROOT_DIR=/ \
         cargo +nightly build --release --target powerpc64le-unknown-linux-gnu -Z build-std=std,panic_abort ;; \
     esac
 

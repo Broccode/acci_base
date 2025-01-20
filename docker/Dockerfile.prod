@@ -56,17 +56,21 @@ RUN cargo chef cook --recipe-path recipe.json
 
 # Build application with platform-specific target and bindgen feature
 COPY . .
+
+# Enable bindgen for aws-lc-sys
+ENV AWS_LC_BINDGEN=1
+
 RUN case "$TARGETPLATFORM" in \
     "linux/amd64") \
         echo "Building for amd64" && \
         BINDGEN_EXTRA_CLANG_ARGS="-target x86_64-unknown-linux-gnu" \
         RUSTFLAGS="-C target-feature=+crt-static" \
-        cargo +nightly build --release --target x86_64-unknown-linux-gnu -Z build-std=std,panic_abort --features aws-lc-sys/bindgen ;; \
+        cargo +nightly build --release --target x86_64-unknown-linux-gnu -Z build-std=std,panic_abort ;; \
     "linux/ppc64le") \
         echo "Building for ppc64le" && \
         BINDGEN_EXTRA_CLANG_ARGS="-target powerpc64le-unknown-linux-gnu" \
         RUSTFLAGS="-C target-feature=+crt-static" \
-        cargo +nightly build --release --target powerpc64le-unknown-linux-gnu -Z build-std=std,panic_abort --features aws-lc-sys/bindgen ;; \
+        cargo +nightly build --release --target powerpc64le-unknown-linux-gnu -Z build-std=std,panic_abort ;; \
     esac
 
 # Generate SBOM with platform info

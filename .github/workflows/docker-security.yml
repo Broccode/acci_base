@@ -67,7 +67,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            BUILDPLATFORM=${{ env.PLATFORMS }}
+            BUILDPLATFORM=linux/amd64
 
       - name: Extract SBOMs from images
         run: |

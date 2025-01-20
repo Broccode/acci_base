@@ -12,21 +12,18 @@ RUN echo "Building on $BUILDPLATFORM, targeting $TARGETPLATFORM"
 
 # Install nightly toolchain and components
 RUN rustup toolchain install nightly && \
-    rustup component add rust-src --toolchain nightly && \
-    rustup component add clippy --toolchain nightly
+    rustup component add rust-src --toolchain nightly
 
 # Set up cross-compilation
 RUN case "$TARGETPLATFORM" in \
     "linux/amd64") \
         echo "Setting up amd64 build" && \
         rustup target add x86_64-unknown-linux-gnu && \
-        rustup target add x86_64-unknown-linux-gnu --toolchain nightly && \
-        rustup component add clippy --target x86_64-unknown-linux-gnu --toolchain nightly ;; \
+        rustup target add x86_64-unknown-linux-gnu --toolchain nightly ;; \
     "linux/ppc64le") \
         echo "Setting up ppc64le build" && \
         rustup target add powerpc64le-unknown-linux-gnu && \
-        rustup target add powerpc64le-unknown-linux-gnu --toolchain nightly && \
-        rustup component add clippy --target powerpc64le-unknown-linux-gnu --toolchain nightly ;; \
+        rustup target add powerpc64le-unknown-linux-gnu --toolchain nightly ;; \
     *) echo "Unsupported platform: $TARGETPLATFORM" && exit 1 ;; \
     esac
 

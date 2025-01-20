@@ -47,7 +47,7 @@ anyhow = "1.0.95"
 
 # Utilities
 serde = { version = "1.0.217", features = ["derive"] }
-serde_json = "1.0.136"
+serde_json = "1.0.137"
 chrono = { version = "0.4.39", features = ["serde"] }
 uuid = { version = "1.12.0", features = ["v4", "serde"] }
 config = { version = "0.15.6", features = ["toml"] }
@@ -64,6 +64,10 @@ lazy_static = "1.5.0"
 regex = "1.11.1"
 sysinfo = { version = "0.33.1", features = ["component", "disk", "system"] }
 axum-core = "0.5.0"
+sea-orm-migration = "1.1.4"
+
+# Migration
+migration = { path = "migration" }
 
 [dev-dependencies]
 tokio-test = "0.4.4"

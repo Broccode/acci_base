@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use migration::MigratorTrait;
 use sea_orm::{Database, DatabaseConnection};
 use tracing::{debug, info, warn};
 
@@ -55,6 +56,14 @@ pub async fn establish_connection() -> anyhow::Result<DatabaseConnection> {
         return Err(e.into());
     }
     debug!("Database ping test successful");
+
+    // Run migrations
+    info!("Running database migrations");
+    if let Err(e) = migration::Migrator::up(&connection, None).await {
+        warn!("Failed to run database migrations: {}", e);
+        return Err(e.into());
+    }
+    info!("Database migrations completed successfully");
 
     Ok(connection)
 }

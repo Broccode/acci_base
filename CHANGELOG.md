@@ -534,6 +534,14 @@ Create a git tag for the version (e.g., v0.2.0)
   - Improved connection timeout handling
   - Better resource utilization in connection pool
 
+### Added
+- Automated database migrations using sea-orm-migration
+- Initial tenant table migration
+- Migration execution during application startup
+
+### Changed
+- Updated database connection logic to run migrations automatically
+
 ## [0.1.0] - 2024-01-01
 
 ### Added

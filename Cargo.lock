@@ -40,6 +40,7 @@ dependencies = [
  "lazy_static",
  "metrics",
  "metrics-exporter-prometheus",
+ "migration",
  "mockall",
  "oauth2",
  "once_cell",
@@ -51,6 +52,7 @@ dependencies = [
  "regex",
  "reqwest 0.12.12",
  "sea-orm",
+ "sea-orm-migration",
  "serde",
  "serde_json",
  "serial_test",
@@ -2729,9 +2731,8 @@ version = "0.1.0"
 dependencies = [
  "async-std",
  "sea-orm-migration",
- "sea-query",
- "syn 2.0.96",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -4256,9 +4257,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.136"
+version = "1.0.137"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "336a0c23cf42a38d9eaa7cd22c7040d04e1228a19a933890805ffd00a16437d2"
+checksum = "930cfb6e6abf99298aaad7d29abbef7a9999a9a8806a40088f55f0dcec03146b"
 dependencies = [
  "indexmap 2.7.0",
  "itoa",

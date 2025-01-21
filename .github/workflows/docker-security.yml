@@ -44,6 +44,10 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-flags: --dns=8.8.8.8 --dns=8.8.4.4
+          driver-opts: |
+            network=host
 
       - name: Set up Cosign
         uses: sigstore/cosign-installer@v3.1.1
@@ -68,6 +72,8 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             BUILDPLATFORM=linux/amd64
+          build-contexts: |
+            chef=docker-image://lukemathwalker/cargo-chef:latest-rust-1.82
 
       - name: Extract SBOMs from images
         run: |

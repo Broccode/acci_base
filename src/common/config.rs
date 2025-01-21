@@ -583,7 +583,7 @@ level = "debug"
         Settings::with_mock_fs().lock().unwrap().write(
             "config/config.prod.toml",
             r#"[server]
-backend_port = 8080
+backend_port = 3333
 default_language = "en"
 
 [logging]
@@ -593,7 +593,7 @@ level = "info"
 
         env::set_var("RUN_MODE", "prod");
         let prod_settings = Settings::new().unwrap();
-        assert_eq!(prod_settings.server.backend_port, 8080);
+        assert_eq!(prod_settings.server.backend_port, 3333);
         assert_eq!(prod_settings.server.default_language.as_str(), "en");
         assert_eq!(prod_settings.logging.level.as_str(), "info");
     }

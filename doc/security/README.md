@@ -2,31 +2,106 @@
 
 ## Authentication Mechanisms
 
-### JWT-Based Authentication
-- Access tokens are issued upon successful login
-- Tokens are signed using RS256 algorithm with 2048-bit keys
-- Access tokens expire after 15 minutes
-- Refresh tokens are valid for 7 days
-- All tokens include tenant ID claim for multi-tenancy support
+### Keycloak Integration
+- OpenID Connect/OAuth2 based authentication
+- JWT tokens with RS256 signing
+- Automatic key rotation and caching
+- Multi-tenant realm support
+- Role-based access control
+- Protocol mapper for tenant information
 
 ### Token Structure
 ```json
 {
   "sub": "user-id",
   "tid": "tenant-id",
-  "roles": ["user", "admin"],
+  "realm_access": {
+    "roles": ["user", "admin"]
+  },
+  "resource_access": {
+    "acci-backend": {
+      "roles": ["tenant_admin"]
+    }
+  },
   "exp": 1705689600,
   "iat": 1705688700,
-  "iss": "acci-framework"
+  "iss": "https://auth.acci-framework.com/realms/acci",
+  "tenant_context": {
+    "id": "tenant-id",
+    "status": "active",
+    "features": ["feature1", "feature2"]
+  }
 }
 ```
 
 ### Multi-Factor Authentication (MFA)
-- Supports TOTP-based second factor
+- TOTP-based second factor
+- WebAuthn/FIDO2 support
 - Backup codes for account recovery
 - Enforced for admin accounts
 - Optional for regular users
-- QR code provisioning for easy setup
+- QR code provisioning
+
+### Tenant Validation
+- Mandatory tenant context in protected routes
+- Active tenant verification
+- Tenant-specific role validation
+- Domain-based tenant resolution
+- Tenant isolation enforcement
+- Cross-tenant access prevention
+
+## Error Handling
+
+### Authentication Errors
+```json
+{
+  "error": {
+    "code": "AUTH_ERROR",
+    "message": "Authentication failed",
+    "details": {
+      "reason": "invalid_token",
+      "description": "Token has expired"
+    },
+    "request_id": "req-123",
+    "timestamp": "2024-01-21T10:00:00Z"
+  }
+}
+```
+
+### Authorization Errors
+```json
+{
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Access denied",
+    "details": {
+      "required_roles": ["admin"],
+      "current_roles": ["user"],
+      "resource": "users",
+      "action": "create"
+    },
+    "request_id": "req-124",
+    "timestamp": "2024-01-21T10:00:00Z"
+  }
+}
+```
+
+### Tenant Errors
+```json
+{
+  "error": {
+    "code": "TENANT_ERROR",
+    "message": "Tenant validation failed",
+    "details": {
+      "tenant_id": "tenant-123",
+      "reason": "inactive_tenant",
+      "status": "suspended"
+    },
+    "request_id": "req-125",
+    "timestamp": "2024-01-21T10:00:00Z"
+  }
+}
+```
 
 ## Rate Limiting & Throttling
 
@@ -43,14 +118,108 @@
 ### API Endpoints
 - 100 requests per minute per token
 - 1000 requests per hour per token
+- Tenant-specific limits
 - Separate limits for read and write operations
 
 ### Rate Limit Headers
 ```http
 X-RateLimit-Limit: 1000
-X-RateLimit-Remaining: 999
+X-RateLimit-Remaining: 995
 X-RateLimit-Reset: 1705689600
 ```
+
+### Rate Limit Error Response
+```json
+{
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "message": "Too many requests",
+    "details": {
+      "limit": 1000,
+      "remaining": 0,
+      "reset_at": "2024-01-21T10:00:00Z",
+      "retry_after": 60
+    },
+    "request_id": "req-126",
+    "timestamp": "2024-01-21T09:59:00Z"
+  }
+}
+```
+
+## Security Headers
+
+```http
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-XSS-Protection: 1; mode=block
+Content-Security-Policy: default-src 'self'
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: geolocation=(), microphone=()
+```
+
+## Audit Logging
+
+### Authentication Events
+```json
+{
+  "event_type": "authentication",
+  "action": "login_success",
+  "timestamp": "2024-01-21T10:00:00Z",
+  "user_id": "user-123",
+  "tenant_id": "tenant-123",
+  "ip_address": "192.168.1.1",
+  "user_agent": "Mozilla/5.0...",
+  "auth_method": "password",
+  "request_id": "req-127"
+}
+```
+
+### Authorization Events
+```json
+{
+  "event_type": "authorization",
+  "action": "access_denied",
+  "timestamp": "2024-01-21T10:00:00Z",
+  "user_id": "user-123",
+  "tenant_id": "tenant-123",
+  "resource": "users",
+  "requested_action": "create",
+  "required_roles": ["admin"],
+  "current_roles": ["user"],
+  "request_id": "req-128"
+}
+```
+
+## Security Best Practices
+
+### Password Policy
+- Minimum length: 12 characters
+- Must contain: uppercase, lowercase, numbers, special characters
+- Maximum age: 90 days
+- Password history: last 12 passwords
+- Bcrypt hashing with work factor 12
+
+### Session Management
+- 15-minute access token lifetime
+- 7-day refresh token lifetime
+- Sliding session extension
+- Concurrent session limits
+- Device tracking and management
+
+### API Security
+- TLS 1.3 required
+- Certificate pinning
+- API key rotation
+- Request signing
+- Payload encryption for sensitive data
+
+### Tenant Isolation
+- Database row-level security
+- Cache key prefixing
+- Event store stream isolation
+- File storage separation
+- Network isolation
 
 ## CORS Configuration
 
@@ -65,15 +234,6 @@ Access-Control-Allow-Origin: https://app.acci-framework.com
 Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
 Access-Control-Allow-Headers: Content-Type, Authorization, X-Tenant-ID
 Access-Control-Max-Age: 86400
-```
-
-### Security Headers
-```http
-Strict-Transport-Security: max-age=31536000; includeSubDomains
-X-Content-Type-Options: nosniff
-X-Frame-Options: DENY
-X-XSS-Protection: 1; mode=block
-Content-Security-Policy: default-src 'self'
 ```
 
 ## Token Security

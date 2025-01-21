@@ -7,27 +7,83 @@ default_language = "en"
 [database]
 host = "db"
 port = 5432
-name = "acci"
-user = "acci"
-password = "acci"
+name = "${DATABASE_NAME}"
+user = "${DATABASE_USER}"
+password = "${DATABASE_PASSWORD}"
 max_connections = 100
-min_connections = 10
-connect_timeout = 10
-acquire_timeout = 8
+connection_timeout = 30
 idle_timeout = 300
-max_lifetime = 1800
+ssl_mode = "verify-full"
+ssl_cert_path = "/etc/postgres/ssl/client-cert.pem"
+ssl_key_path = "/etc/postgres/ssl/client-key.pem"
+ssl_root_cert_path = "/etc/postgres/ssl/root.crt"
 
 [redis]
-url = "redis://redis:6379"
+url = "redis://:${REDIS_PASSWORD}@redis:6379"
+pool_size = 32
+max_connections = 100
+connection_timeout = 30
+keep_alive = 60
 
 [logging]
 level = "info"
+format = "json"
+output = "stdout"
+request_logging = true
+error_logging = true
+performance_logging = true
 
 [keycloak]
-url = "http://keycloak:8080/auth"
-realm = "acci"
-client_id = "acci-backend"
-# client_secret wird über Docker Secrets bereitgestellt
+url = "https://${KEYCLOAK_HOSTNAME}/auth"
+realm = "${KEYCLOAK_REALM}"
+client_id = "${KEYCLOAK_CLIENT_ID}"
+client_secret = "${KEYCLOAK_CLIENT_SECRET}"
+admin_username = "${KEYCLOAK_ADMIN}"
+admin_password = "${KEYCLOAK_ADMIN_PASSWORD}"
 verify_token = true
-public_key_cache_ttl = 3600 # 1 hour in seconds
-admin_credentials_secret = true # Verwendet Docker Secrets für Admin-Credentials
+public_key_cache_ttl = 3600
+ssl_verify = true
+ssl_cert_path = "/etc/keycloak/ssl/client-cert.pem"
+
+[eventstore]
+connection_string = "esdb://eventstore:2113?tls=true&tlsVerifyCert=true"
+username = "${EVENTSTORE_USER}"
+password = "${EVENTSTORE_PASSWORD}"
+max_retries = 5
+retry_delay = 1000
+snapshot_interval = 100
+max_append_size = "1MB"
+ssl_verify = true
+ssl_cert_path = "/etc/eventstore/ssl/client-cert.pem"
+ssl_key_path = "/etc/eventstore/ssl/client-key.pem"
+ssl_ca_path = "/etc/eventstore/ssl/ca.pem"
+
+[rabbitmq]
+url = "amqps://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5671"
+connection_pool_size = 32
+channels_per_connection = 10
+prefetch_count = 100
+message_ttl = 86400000
+dead_letter_enabled = true
+ssl_verify = true
+ssl_cert_path = "/etc/rabbitmq/ssl/client-cert.pem"
+ssl_key_path = "/etc/rabbitmq/ssl/client-key.pem"
+ssl_ca_path = "/etc/rabbitmq/ssl/ca.pem"
+
+[security]
+enable_cors = false
+allowed_origins = []
+rate_limit = true
+rate_limit_requests = 1000
+rate_limit_window = 60
+enable_csrf = true
+csrf_methods = ["POST", "PUT", "DELETE", "PATCH"]
+secure_headers = true
+content_security_policy = "default-src 'self'"
+
+[monitoring]
+metrics_enabled = true
+metrics_path = "/metrics"
+tracing_enabled = true
+health_check_interval = 30
+health_check_timeout = 10

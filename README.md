@@ -30,9 +30,10 @@ ACCI Framework is a modern, multi-tenant capable full-stack application framewor
 - Backend: Rust (Axum, async-graphql)
 - Frontend: Leptos
 - Database: PostgreSQL
+- Event Store: EventStoreDB
 - Metrics: InfluxDB
 - Cache: Redis
-- Message Broker: RabbitMQ
+- Message Broker: RabbitMQ (with dead-letter support)
 - Identity Provider: Keycloak
 - Service Mesh: Ready
 - Container Registry: Integrated
@@ -94,9 +95,10 @@ ACCI Framework ist ein modernes Full-Stack-Anwendungsframework mit Multi-Tenant-
 - Backend: Rust (Axum, async-graphql)
 - Frontend: Leptos
 - Datenbank: PostgreSQL
+- Event Store: EventStoreDB
 - Metriken: InfluxDB
 - Cache: Redis
-- Message Broker: RabbitMQ
+- Message Broker: RabbitMQ (mit Dead-Letter-Unterstützung)
 - Identity Provider: Keycloak
 - Service Mesh: Vorbereitet
 - Container Registry: Integriert
@@ -158,9 +160,10 @@ ACCI Framework është një framework modern aplikacionesh full-stack me aftësi
 - Backend: Rust (Axum, async-graphql)
 - Frontend: Leptos
 - Databaza: PostgreSQL
+- Event Store: EventStoreDB
 - Metrikat: InfluxDB
 - Cache: Redis
-- Message Broker: RabbitMQ
+- Message Broker: RabbitMQ (me mbështetje dead-letter)
 - Identity Provider: Keycloak
 - Service Mesh: Gati
 - Container Registry: I integruar

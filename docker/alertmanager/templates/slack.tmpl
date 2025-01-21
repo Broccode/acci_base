@@ -1,0 +1,51 @@
+{{ define "slack.title" }}
+[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname }}
+{{ end }}
+
+{{ define "slack.color" }}
+{{- if eq .Status "firing" -}}
+  {{- if eq .CommonLabels.severity "critical" -}}
+    danger
+  {{- else if eq .CommonLabels.severity "warning" -}}
+    warning
+  {{- else -}}
+    #439FE0
+  {{- end -}}
+{{- else -}}
+  good
+{{- end -}}
+{{ end }}
+
+{{ define "slack.text" }}
+{{ if gt (len .Alerts.Firing) 0 }}
+*🚨 Alerts Firing:*
+{{ range .Alerts.Firing }}
+• *Alert:* {{ .Labels.alertname }}{{ if .Labels.severity }} - `{{ .Labels.severity }}`{{ end }}
+*Description:* {{ .Annotations.description }}
+*Started:* <!date^{{ .StartsAt.Unix }}^{date_num} {time}|{{ .StartsAt }}> ({{ .StartsAt.Unix | since }})
+*Details:*
+{{ range .Labels.SortedPairs }} - {{ .Name }}: `{{ .Value }}`
+{{ end }}
+{{ if .Annotations.runbook_url }}*📚 Runbook:* {{ .Annotations.runbook_url }}{{ end }}
+{{ if .Annotations.dashboard_url }}*📊 Dashboard:* {{ .Annotations.dashboard_url }}{{ end }}
+{{ if .Annotations.metrics }}*📈 Metrics:*
+{{ .Annotations.metrics }}{{ end }}
+{{ end }}
+{{ end }}
+
+{{ if gt (len .Alerts.Resolved) 0 }}
+*✅ Alerts Resolved:*
+{{ range .Alerts.Resolved }}
+• *Alert:* {{ .Labels.alertname }}{{ if .Labels.severity }} - `{{ .Labels.severity }}`{{ end }}
+*Description:* {{ .Annotations.description }}
+*Resolved:* <!date^{{ .EndsAt.Unix }}^{date_num} {time}|{{ .EndsAt }}> (Duration: {{ .StartsAt.Unix | since }})
+{{ end }}
+{{ end }}
+
+*Affected Services:* {{ .CommonLabels.service }}
+*Cluster:* {{ .CommonLabels.cluster }}
+*Environment:* {{ .CommonLabels.environment }}
+
+{{ if .CommonAnnotations.playbook }}*🔧 Playbook:* {{ .CommonAnnotations.playbook }}{{ end }}
+{{ if .CommonAnnotations.impact }}*💥 Impact:* {{ .CommonAnnotations.impact }}{{ end }}
+{{ end }} 

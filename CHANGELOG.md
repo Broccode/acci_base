@@ -116,6 +116,15 @@ Create a git tag for the version (e.g., v0.2.0)
 
 # [Unreleased]
 
+### Added
+- Comprehensive Event-Sourcing & CQRS documentation in all supported languages (DE, FR, SQ, ES)
+  - Detailed implementation guide with code examples
+  - Best practices for event design and command handling
+  - Performance optimization strategies
+  - Testing approaches
+  - Monitoring and health check implementations
+  - Error handling guidelines
+
 ### Changed
 - Simplified Docker build process by adopting native multi-platform builds
   - Removed complex cross-compilation setup
@@ -135,6 +144,14 @@ Create a git tag for the version (e.g., v0.2.0)
   - Added connection health check on startup
   - Improved error handling and reporting
 - Updated tenant route parameter syntax from `:id` to `{id}` to comply with Axum 0.8+ requirements
+- Updated configuration system to use environment-specific settings
+  - Added proper test isolation with mock filesystem
+  - Enhanced error handling for missing configurations
+  - Improved environment variable override handling
+  - Added comprehensive test coverage for configuration scenarios
+  - Fixed production port configuration
+  - Enhanced logging for configuration loading
+  - Added proper default values for database connections
 
 ### Fixed
 - Resolved cross-compilation issues by switching to native Docker multi-platform builds
@@ -143,6 +160,11 @@ Create a git tag for the version (e.g., v0.2.0)
   - Fixed platform-specific build failures
   - Improved build reproducibility across platforms
   - Fixed Trivy security scanning by using registry-based image references
+- Resolved test failures in configuration system
+  - Fixed production port configuration test
+  - Added proper test isolation using mock filesystem
+  - Enhanced error handling in configuration tests
+  - Improved test reliability and maintainability
 
 ### Added
 - System metrics monitoring in health checks using sysinfo

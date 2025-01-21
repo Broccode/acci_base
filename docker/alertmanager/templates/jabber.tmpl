@@ -1,0 +1,57 @@
+{{ define "jabber.message" }}
+{{ if eq .Status "firing" }}🚨 ALERT{{ else }}✅ RESOLVED{{ end }} - {{ .CommonLabels.alertname }}
+
+Environment: {{ .CommonLabels.environment }}
+Cluster: {{ .CommonLabels.cluster }}
+Service: {{ .CommonLabels.service }}
+
+{{ if gt (len .Alerts.Firing) 0 -}}
+=== ACTIVE ALERTS ({{ .Alerts.Firing | len }}) ===
+{{ range .Alerts.Firing }}
+• {{ .Labels.alertname }} ({{ .Labels.severity }})
+  Description: {{ .Annotations.description }}
+  Started: {{ .StartsAt }}
+  Duration: {{ .StartsAt.Unix | since }}
+
+  Labels:
+  {{- range .Labels.SortedPairs }}
+    - {{ .Name }}: {{ .Value }}
+  {{- end }}
+
+  {{- if .Annotations.metrics }}
+  Metrics:
+  {{ .Annotations.metrics }}
+  {{- end }}
+
+  {{- if .Annotations.runbook_url }}
+  Runbook: {{ .Annotations.runbook_url }}
+  {{- end }}
+  {{- if .Annotations.dashboard_url }}
+  Dashboard: {{ .Annotations.dashboard_url }}
+  {{- end }}
+{{ end }}
+{{- end }}
+
+{{ if gt (len .Alerts.Resolved) 0 -}}
+=== RESOLVED ALERTS ({{ .Alerts.Resolved | len }}) ===
+{{ range .Alerts.Resolved }}
+• {{ .Labels.alertname }} ({{ .Labels.severity }})
+  Description: {{ .Annotations.description }}
+  Duration: {{ .StartsAt.Unix | since }}
+  Resolved: {{ .EndsAt }}
+{{ end }}
+{{- end }}
+
+{{ if .CommonAnnotations.playbook -}}
+=== PLAYBOOK ===
+{{ .CommonAnnotations.playbook }}
+{{- end }}
+
+{{ if .CommonAnnotations.impact -}}
+=== IMPACT ===
+{{ .CommonAnnotations.impact }}
+{{- end }}
+
+---
+Alert Manager: https://alerts.acci.io
+{{ end }} 

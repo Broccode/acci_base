@@ -31,7 +31,7 @@ openid = "0.16.1"
 oauth2 = "4.4.2"
 oso = "0.27.3"
 polar-core = "0.27.3"
-redis = { version = "0.28.1", features = ["tokio-comp", "connection-manager"] }
+redis = { version = "0.24", features = ["tokio-comp"] }
 reqwest = { version = "0.12.12", features = ["json"] }
 headers = "0.4.0"
 
@@ -78,6 +78,11 @@ sea-orm-migration = "1.1.4"
 # Migration
 migration = { path = "migration" }
 
+eventstore = "2.3"
+lapin = "2.3"
+
+event_store = { path = "crates/event_store" }
+
 [dev-dependencies]
 tokio-test = "0.4.4"
 pretty_assertions = "1.4.1"
@@ -88,4 +93,4 @@ async-trait = "0.1.85"
 serial_test = "3.2.0"
 
 [workspace]
-members = [".", "migration"]
+members = [".", "crates/event_store", "migration"]

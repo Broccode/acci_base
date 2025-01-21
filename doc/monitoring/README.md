@@ -2,21 +2,58 @@
 
 ## Prometheus Metrics
 
-### System Metrics
+### System Metrics (via sysinfo)
 
 ```prometheus
-# CPU Usage
-process_cpu_usage_percent{service="acci-api"} 45.2
-
 # Memory Usage
+system_memory_total_bytes{service="acci-api"} 17179869184
+system_memory_used_bytes{service="acci-api"} 8589934592
+system_memory_available_bytes{service="acci-api"} 8589934592
+
+# CPU Usage (per core)
+system_cpu_usage_percent{service="acci-api",cpu="0"} 45.2
+system_cpu_usage_percent{service="acci-api",cpu="1"} 32.1
+
+# Process Metrics
 process_memory_rss_bytes{service="acci-api"} 1024576
 process_memory_heap_bytes{service="acci-api"} 512288
-
-# File Descriptors
 process_open_fds{service="acci-api"} 124
-
-# Garbage Collection
 process_gc_duration_seconds{service="acci-api"} 0.042
+```
+
+### Database Connection Pool Metrics
+
+```prometheus
+# Pool Size
+db_pool_connections_total{service="acci-api",state="idle"} 5
+db_pool_connections_total{service="acci-api",state="active"} 3
+db_pool_connections_total{service="acci-api",state="max"} 100
+
+# Connection Timing
+db_connection_acquire_duration_seconds{service="acci-api",quantile="0.95"} 0.01
+db_connection_acquire_timeout_total{service="acci-api"} 2
+
+# Connection Health
+db_connection_errors_total{service="acci-api",type="timeout"} 1
+db_connection_errors_total{service="acci-api",type="auth"} 0
+db_health_check_success{service="acci-api"} 1
+```
+
+### Cache Performance Metrics
+
+```prometheus
+# Cache Operations
+cache_operations_total{service="acci-api",operation="get",status="hit"} 15234
+cache_operations_total{service="acci-api",operation="get",status="miss"} 234
+cache_operations_total{service="acci-api",operation="set"} 5678
+
+# Cache Memory
+cache_memory_used_bytes{service="acci-api"} 1048576
+cache_items_total{service="acci-api"} 1234
+
+# Cache Performance
+cache_operation_duration_seconds{service="acci-api",operation="get",quantile="0.95"} 0.002
+cache_hit_ratio{service="acci-api"} 0.985
 ```
 
 ### HTTP Metrics
@@ -24,15 +61,34 @@ process_gc_duration_seconds{service="acci-api"} 0.042
 ```prometheus
 # Request Rate
 http_requests_total{service="acci-api",method="POST",path="/auth/login"} 1234
+http_requests_total{service="acci-api",method="GET",path="/users"} 5678
 
 # Response Time
 http_request_duration_seconds{service="acci-api",method="GET",path="/users",quantile="0.95"} 0.123
+http_request_duration_seconds{service="acci-api",method="POST",path="/auth/login",quantile="0.95"} 0.234
 
 # Error Rate
 http_errors_total{service="acci-api",method="POST",path="/users",status="400"} 23
+http_errors_total{service="acci-api",method="GET",path="/users",status="500"} 1
 
 # Active Requests
 http_active_requests{service="acci-api"} 45
+```
+
+### Rate Limiting Metrics
+
+```prometheus
+# Rate Limit Hits
+rate_limit_hits_total{service="acci-api",endpoint="/auth/login"} 123
+rate_limit_hits_total{service="acci-api",endpoint="/api/v1/users"} 45
+
+# Current Rate Status
+rate_limit_remaining{service="acci-api",endpoint="/auth/login"} 877
+rate_limit_remaining{service="acci-api",endpoint="/api/v1/users"} 955
+
+# Rate Limit Configurations
+rate_limit_max{service="acci-api",endpoint="/auth/login"} 1000
+rate_limit_window_seconds{service="acci-api",endpoint="/auth/login"} 3600
 ```
 
 ### Business Metrics
@@ -48,22 +104,99 @@ acci_failed_logins_total{service="acci-api",tenant="tenant-123"} 12
 acci_token_usage_total{service="acci-api",tenant="tenant-123",token_type="access"} 45678
 
 # Tenant Activity
-acci_tenant_requests_total{service="acci-api",tenant="tenant-123"} 89012
+acci_tenant_requests_total{service="acci-api",tenant="tenant-123"} 12345
+acci_tenant_active_sessions{service="acci-api",tenant="tenant-123"} 150
 ```
 
-### Resource Pool Metrics
+## Grafana Dashboards
 
-```prometheus
-# Database Connections
-db_connections_active{service="acci-api",pool="main"} 10
-db_connections_idle{service="acci-api",pool="main"} 5
-db_connections_max{service="acci-api",pool="main"} 20
+### System Overview Dashboard
+- System resource utilization
+- Process metrics
+- Database connection pool status
+- Cache performance
 
-# Cache Stats
-cache_hits_total{service="acci-api",cache="user"} 5678
-cache_misses_total{service="acci-api",cache="user"} 123
-cache_size_bytes{service="acci-api",cache="user"} 1048576
+### API Performance Dashboard
+- Request rates and latencies
+- Error rates
+- Rate limiting status
+- Endpoint usage patterns
+
+### Business Metrics Dashboard
+- Active users per tenant
+- Authentication metrics
+- Token usage
+- Tenant activity
+
+## Alerting Rules
+
+### Critical Alerts
+```yaml
+- alert: HighErrorRate
+  expr: rate(http_errors_total{status=~"5.."}[5m]) > 0.1
+  for: 5m
+  labels:
+    severity: critical
+  annotations:
+    description: "High error rate detected"
+
+- alert: DatabaseConnectionPoolExhausted
+  expr: db_pool_connections_total{state="active"} >= db_pool_connections_total{state="max"} * 0.9
+  for: 5m
+  labels:
+    severity: critical
+  annotations:
+    description: "Database connection pool near exhaustion"
+
+- alert: CachePerformanceDegraded
+  expr: cache_hit_ratio < 0.8
+  for: 15m
+  labels:
+    severity: warning
+  annotations:
+    description: "Cache hit ratio below threshold"
 ```
+
+## Health Checks
+
+### Endpoint: `/health`
+```json
+{
+  "status": "healthy",
+  "timestamp": "2024-01-21T10:00:00Z",
+  "components": {
+    "database": {
+      "status": "healthy",
+      "latency_ms": 5,
+      "pool_status": {
+        "active": 3,
+        "idle": 5,
+        "max": 100
+      }
+    },
+    "cache": {
+      "status": "healthy",
+      "latency_ms": 2,
+      "hit_ratio": 0.985
+    },
+    "system": {
+      "status": "healthy",
+      "memory": {
+        "total": 17179869184,
+        "used": 8589934592,
+        "available": 8589934592
+      },
+      "cpu_usage": 38.6
+    }
+  }
+}
+```
+
+### Endpoint: `/metrics`
+- Prometheus format metrics endpoint
+- Includes all system, database, cache, and business metrics
+- Rate limited to prevent abuse
+- Authentication required in production
 
 ## Tracing Configuration
 
@@ -180,129 +313,6 @@ info!(
     "User logged in successfully"
 );
 ```
-
-## Alerting Rules
-
-### Prometheus Alert Rules
-
-```yaml
-groups:
-  - name: acci-api
-    rules:
-      # High Error Rate
-      - alert: HighErrorRate
-        expr: |
-          sum(rate(http_errors_total{service="acci-api"}[5m]))
-          /
-          sum(rate(http_requests_total{service="acci-api"}[5m]))
-          > 0.05
-        for: 5m
-        labels:
-          severity: critical
-        annotations:
-          summary: High error rate detected
-          description: Error rate is above 5% for 5 minutes
-
-      # High Response Time
-      - alert: SlowResponses
-        expr: |
-          histogram_quantile(0.95,
-            rate(http_request_duration_seconds_bucket{service="acci-api"}[5m]))
-          > 1.0
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: Slow response times detected
-          description: 95th percentile response time is above 1 second
-
-      # Resource Exhaustion
-      - alert: HighMemoryUsage
-        expr: |
-          process_memory_rss_bytes{service="acci-api"}
-          /
-          process_memory_max_bytes{service="acci-api"}
-          > 0.85
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: High memory usage detected
-          description: Memory usage is above 85% for 5 minutes
-
-      # Database Connection Pool
-      - alert: DatabaseConnectionsSaturated
-        expr: |
-          db_connections_active{service="acci-api"}
-          /
-          db_connections_max{service="acci-api"}
-          > 0.8
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: Database connection pool near capacity
-          description: More than 80% of database connections are in use
-
-      # Failed Authentication
-      - alert: HighFailedLogins
-        expr: |
-          rate(acci_failed_logins_total{service="acci-api"}[5m])
-          > 10
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: High rate of failed logins
-          description: More than 10 failed logins per minute detected
-```
-
-### Alert Thresholds
-
-| Metric | Warning | Critical | Duration |
-|--------|---------|----------|----------|
-| Error Rate | 2% | 5% | 5m |
-| Response Time (p95) | 500ms | 1s | 5m |
-| CPU Usage | 70% | 85% | 5m |
-| Memory Usage | 80% | 90% | 5m |
-| Disk Usage | 75% | 90% | 15m |
-| Failed Logins | 10/min | 30/min | 5m |
-| DB Connections | 80% | 90% | 5m |
-| Cache Miss Rate | 40% | 60% | 15m |
-
-## Dashboards
-
-### System Overview
-![System Overview](https://api.acci-framework.com/docs/images/dashboard-system.png)
-
-- CPU & Memory Usage
-- Network I/O
-- Disk Usage & I/O
-- Process Stats
-
-### API Performance
-![API Performance](https://api.acci-framework.com/docs/images/dashboard-api.png)
-
-- Request Rate
-- Error Rate
-- Response Time
-- Active Requests
-
-### Business Metrics
-![Business Metrics](https://api.acci-framework.com/docs/images/dashboard-business.png)
-
-- Active Users
-- API Token Usage
-- Tenant Activity
-- Failed Logins
-
-### Resource Pools
-![Resource Pools](https://api.acci-framework.com/docs/images/dashboard-resources.png)
-
-- Database Connections
-- Cache Stats
-- Connection Pool Usage
-- Queue Depths
 
 ## Integration
 

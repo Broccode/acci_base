@@ -28,7 +28,7 @@ api/
 ### REST API
 - OpenAPI/Swagger Specification 3.0
 - Detailed request/response examples
-- Error codes and handling
+- Standardized error responses
 - Rate limiting information
 - Authentication methods
 - Tenant-specific considerations
@@ -48,6 +48,145 @@ api/
 - Versioning information
 - Best practices
 - SDK examples
+
+## URL Parameters
+
+### Path Parameters
+Use curly braces for path parameters:
+```
+/api/v1/tenants/{tenant_id}/users/{user_id}
+```
+
+NOT colon prefix:
+```
+/api/v1/tenants/:tenant_id/users/:user_id  # Deprecated
+```
+
+## Error Responses
+
+### Standard Error Format
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human readable message",
+    "details": {
+      "field1": "Additional information",
+      "field2": "More context"
+    },
+    "request_id": "req-123",
+    "timestamp": "2024-01-21T10:00:00Z"
+  }
+}
+```
+
+### Common Error Types
+```json
+// Authentication Error
+{
+  "error": {
+    "code": "AUTH_ERROR",
+    "message": "Authentication failed",
+    "details": {
+      "reason": "invalid_token",
+      "description": "Token has expired"
+    },
+    "request_id": "req-123",
+    "timestamp": "2024-01-21T10:00:00Z"
+  }
+}
+
+// Validation Error
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid input data",
+    "details": {
+      "fields": {
+        "email": "Invalid email format",
+        "age": "Must be greater than 0"
+      }
+    },
+    "request_id": "req-124",
+    "timestamp": "2024-01-21T10:00:00Z"
+  }
+}
+
+// Rate Limit Error
+{
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "message": "Too many requests",
+    "details": {
+      "limit": 1000,
+      "remaining": 0,
+      "reset_at": "2024-01-21T10:00:00Z",
+      "retry_after": 60
+    },
+    "request_id": "req-125",
+    "timestamp": "2024-01-21T09:59:00Z"
+  }
+}
+
+// Tenant Error
+{
+  "error": {
+    "code": "TENANT_ERROR",
+    "message": "Tenant validation failed",
+    "details": {
+      "tenant_id": "tenant-123",
+      "reason": "inactive_tenant",
+      "status": "suspended"
+    },
+    "request_id": "req-126",
+    "timestamp": "2024-01-21T10:00:00Z"
+  }
+}
+```
+
+## Response Headers
+
+### Standard Headers
+```http
+Content-Type: application/json
+X-Request-ID: req-123
+X-Tenant-ID: tenant-123
+```
+
+### Rate Limit Headers
+```http
+X-RateLimit-Limit: 1000
+X-RateLimit-Remaining: 995
+X-RateLimit-Reset: 1705689600
+```
+
+### Security Headers
+```http
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-XSS-Protection: 1; mode=block
+Content-Security-Policy: default-src 'self'
+Referrer-Policy: strict-origin-when-cross-origin
+```
+
+## Postman Collection
+
+A complete Postman collection is available in the `postman` directory, including:
+- Environment variables
+- Request examples
+- Test scripts
+- Pre-request scripts
+- Environment configs
+
+## Insomnia Collection
+
+An Insomnia collection is available in the `insomnia` directory, featuring:
+- Environment setup
+- Request templates
+- Response validation
+- GraphQL queries
+- Authentication flows
 
 ## Maintenance
 

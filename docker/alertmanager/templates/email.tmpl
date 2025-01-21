@@ -1,0 +1,136 @@
+{{ define "email.subject" }}
+[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname }}
+{{ end }}
+
+{{ define "email.html" }}
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+      color: #333;
+    }
+    .header {
+      background: {{ if eq .Status "firing" }}{{ if eq .CommonLabels.severity "critical" }}#dc3545{{ else }}#ffc107{{ end }}{{ else }}#28a745{{ end }};
+      color: white;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+    .alert-group {
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    .alert-item {
+      border-left: 4px solid {{ if eq .Status "firing" }}#dc3545{{ else }}#28a745{{ end }};
+      padding: 10px;
+      margin: 10px 0;
+    }
+    .label {
+      display: inline-block;
+      background: #f8f9fa;
+      padding: 2px 6px;
+      border-radius: 3px;
+      margin: 2px;
+    }
+    .metrics {
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+    .button {
+      display: inline-block;
+      padding: 10px 20px;
+      background: #007bff;
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+      margin: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2>{{ .Status | toUpper }}: {{ .CommonLabels.alertname }}</h2>
+    <p>Environment: {{ .CommonLabels.environment }} | Cluster: {{ .CommonLabels.cluster }}</p>
+  </div>
+
+  {{ if gt (len .Alerts.Firing) 0 }}
+  <div class="alert-group">
+    <h3>🚨 Active Alerts ({{ .Alerts.Firing | len }})</h3>
+    {{ range .Alerts.Firing }}
+    <div class="alert-item">
+      <h4>{{ .Labels.alertname }}</h4>
+      <p><strong>Severity:</strong> {{ .Labels.severity }}</p>
+      <p><strong>Description:</strong> {{ .Annotations.description }}</p>
+      <p><strong>Started:</strong> {{ .StartsAt }}</p>
+      
+      <div>
+        <strong>Labels:</strong><br>
+        {{ range .Labels.SortedPairs }}
+        <span class="label">{{ .Name }}: {{ .Value }}</span>
+        {{ end }}
+      </div>
+
+      {{ if .Annotations.metrics }}
+      <div class="metrics">
+        <strong>Metrics:</strong><br>
+        {{ .Annotations.metrics }}
+      </div>
+      {{ end }}
+
+      <div style="margin-top: 10px;">
+        {{ if .Annotations.dashboard_url }}
+        <a href="{{ .Annotations.dashboard_url }}" class="button">View Dashboard</a>
+        {{ end }}
+        {{ if .Annotations.runbook_url }}
+        <a href="{{ .Annotations.runbook_url }}" class="button">View Runbook</a>
+        {{ end }}
+      </div>
+    </div>
+    {{ end }}
+  </div>
+  {{ end }}
+
+  {{ if gt (len .Alerts.Resolved) 0 }}
+  <div class="alert-group">
+    <h3>✅ Resolved Alerts ({{ .Alerts.Resolved | len }})</h3>
+    {{ range .Alerts.Resolved }}
+    <div class="alert-item">
+      <h4>{{ .Labels.alertname }}</h4>
+      <p><strong>Description:</strong> {{ .Annotations.description }}</p>
+      <p><strong>Resolved:</strong> {{ .EndsAt }}</p>
+      <p><strong>Duration:</strong> {{ .StartsAt.Unix | since }}</p>
+    </div>
+    {{ end }}
+  </div>
+  {{ end }}
+
+  {{ if .CommonAnnotations.playbook }}
+  <div class="alert-group">
+    <h3>🔧 Playbook</h3>
+    <p>{{ .CommonAnnotations.playbook }}</p>
+  </div>
+  {{ end }}
+
+  {{ if .CommonAnnotations.impact }}
+  <div class="alert-group">
+    <h3>💥 Impact</h3>
+    <p>{{ .CommonAnnotations.impact }}</p>
+  </div>
+  {{ end }}
+
+  <div style="margin-top: 20px; font-size: 12px; color: #666;">
+    <p>This is an automated alert from ACCI Monitoring System.</p>
+  </div>
+</body>
+</html>
+{{ end }} 

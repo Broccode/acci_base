@@ -7,7 +7,11 @@ use tower_http::{compression::CompressionLayer, cors::CorsLayer, trace::TraceLay
 use crate::common::error::AppError;
 use crate::common::i18n::{FileResourceProvider, I18nManager, SupportedLanguage};
 use crate::common::metrics;
+use crate::infrastructure::config::Config;
 use crate::infrastructure::database::connection::establish_connection;
+use crate::infrastructure::event_store::EventStoreClient;
+use crate::infrastructure::message_broker::MessageBroker;
+use crate::infrastructure::redis::RedisClient;
 use crate::infrastructure::services::tenant_service::TenantServiceImpl;
 use crate::infrastructure::state::AppState;
 
@@ -22,6 +26,9 @@ async fn main() -> Result<(), AppError> {
     // Initialize logging
     common::setup_logging()?;
 
+    // Load configuration
+    let config = Config::load()?;
+
     // Initialize i18n
     let i18n_manager =
         Arc::new(I18nManager::new(SupportedLanguage::En, Arc::new(FileResourceProvider)).await?);
@@ -35,8 +42,24 @@ async fn main() -> Result<(), AppError> {
     // Initialize metrics
     let metrics_handle = metrics::init_metrics()?;
 
+    // Initialize Redis
+    let redis = Arc::new(RedisClient::new(&config.redis)?);
+
+    // Initialize EventStore
+    let event_store = Arc::new(EventStoreClient::new(config.event_store)?);
+
+    // Initialize MessageBroker
+    let message_broker = Arc::new(MessageBroker::new(&config.rabbitmq)?);
+
     // Create app state
-    let state = AppState::new(tenant_service, i18n_manager, metrics_handle);
+    let state = AppState::new(
+        tenant_service,
+        i18n_manager,
+        metrics_handle,
+        redis,
+        event_store,
+        message_broker,
+    );
 
     // Build application
     let app = Router::new()

@@ -10,15 +10,9 @@ port = 5432
 name = "acci"
 user = "acci"
 password = "acci"
-max_connections = 50
-min_connections = 10
-connect_timeout = 5
-acquire_timeout = 10
-idle_timeout = 60
-max_lifetime = 300
 
 [redis]
-url = "redis://localhost:6379"
+url = "redis://redis:6379"
 
 [logging]
 level = "debug"
@@ -32,3 +26,20 @@ admin_username = "admin"
 admin_password = "admin"
 verify_token = true
 public_key_cache_ttl = 3600 # 1 hour in seconds
+
+[eventstore]
+connection_string = "esdb://eventstore:2113?tls=false"
+username = "admin"
+password = "changeit"
+max_retries = 5
+retry_delay = 1000 # milliseconds
+snapshot_interval = 100
+max_append_size = "1MB"
+
+[rabbitmq]
+url = "amqp://acci:acci@rabbitmq:5672"
+connection_pool_size = 32
+channels_per_connection = 10
+prefetch_count = 100
+message_ttl = 86400000 # 24 hours in milliseconds
+dead_letter_enabled = true

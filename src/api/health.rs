@@ -29,6 +29,8 @@ pub struct HealthResponse {
 pub struct HealthDetails {
     tenant_service: ComponentHealth,
     cache: ComponentHealth,
+    event_store: ComponentHealth,
+    message_broker: ComponentHealth,
     external_services: Vec<ServiceHealth>,
     system: SystemHealth,
 }
@@ -73,6 +75,8 @@ pub async fn health_check(State(state): State<AppState>) -> impl IntoResponse {
         Ok(details) => {
             let is_healthy = details.tenant_service.status == HealthStatus::Healthy
                 && details.cache.status == HealthStatus::Healthy
+                && details.event_store.status == HealthStatus::Healthy
+                && details.message_broker.status == HealthStatus::Healthy
                 && details
                     .external_services
                     .iter()
@@ -101,20 +105,81 @@ pub async fn health_check(State(state): State<AppState>) -> impl IntoResponse {
 }
 
 async fn readiness_check(State(state): State<AppState>) -> impl IntoResponse {
-    let i18n_msg = state
-        .i18n
-        .format_message(SupportedLanguage::En, "system-ready-message", None)
-        .await
-        .unwrap_or_else(|_| "System is ready".to_string());
+    let mut sys = SysInfo::new();
+    sys.refresh_all();
+
+    let health_details = check_system_health(&state, &sys).await;
+    let (status, status_code, message) = match &health_details {
+        Ok(details) => {
+            let has_unhealthy = details.tenant_service.status == HealthStatus::Unhealthy
+                || details.cache.status == HealthStatus::Unhealthy
+                || details.event_store.status == HealthStatus::Unhealthy
+                || details.message_broker.status == HealthStatus::Unhealthy;
+
+            let has_degraded = details.tenant_service.status == HealthStatus::Degraded
+                || details.cache.status == HealthStatus::Degraded
+                || details.event_store.status == HealthStatus::Degraded
+                || details.message_broker.status == HealthStatus::Degraded;
+
+            let system_overloaded = details.system.cpu_usage >= 90.0
+                || details.system.memory_usage >= 90.0
+                || details.system.disk_usage >= 90.0;
+
+            if has_unhealthy {
+                (
+                    "not_ready".to_string(),
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    state
+                        .i18n
+                        .format_message(SupportedLanguage::En, "system-not-ready-message", None)
+                        .await
+                        .unwrap_or_else(|_| {
+                            "System is not ready - critical services unavailable".to_string()
+                        }),
+                )
+            } else if has_degraded || system_overloaded {
+                (
+                    "partially_ready".to_string(),
+                    StatusCode::OK,
+                    state
+                        .i18n
+                        .format_message(SupportedLanguage::En, "system-degraded-message", None)
+                        .await
+                        .unwrap_or_else(|_| {
+                            "System is partially ready - some services degraded".to_string()
+                        }),
+                )
+            } else {
+                (
+                    "ready".to_string(),
+                    StatusCode::OK,
+                    state
+                        .i18n
+                        .format_message(SupportedLanguage::En, "system-ready-message", None)
+                        .await
+                        .unwrap_or_else(|_| "System is ready".to_string()),
+                )
+            }
+        },
+        Err(_) => (
+            "not_ready".to_string(),
+            StatusCode::SERVICE_UNAVAILABLE,
+            state
+                .i18n
+                .format_message(SupportedLanguage::En, "system-error-message", None)
+                .await
+                .unwrap_or_else(|_| "System check failed".to_string()),
+        ),
+    };
 
     let body = Json(HealthResponse {
-        status: "ready".to_string(),
-        message: i18n_msg,
+        status,
+        message,
         timestamp: Utc::now().to_rfc3339(),
-        details: None,
+        details: health_details.ok(),
     });
 
-    (StatusCode::OK, body).into_response()
+    (status_code, body).into_response()
 }
 
 async fn check_system_health(state: &AppState, sys: &SysInfo) -> AppResult<HealthDetails> {
@@ -133,15 +198,71 @@ async fn check_system_health(state: &AppState, sys: &SysInfo) -> AppResult<Healt
         },
     };
 
-    // TODO: Implement cache health check once cache is integrated
-    let cache_health = ComponentHealth {
-        status: HealthStatus::Healthy,
-        latency_ms: 0,
-        message: None,
+    // Check Redis health
+    let cache_start = std::time::Instant::now();
+    let cache_health = match &state.redis {
+        Some(redis) => match redis.ping().await {
+            Ok(_) => ComponentHealth {
+                status: HealthStatus::Healthy,
+                latency_ms: cache_start.elapsed().as_millis() as u64,
+                message: None,
+            },
+            Err(e) => ComponentHealth {
+                status: HealthStatus::Unhealthy,
+                latency_ms: cache_start.elapsed().as_millis() as u64,
+                message: Some(e.to_string()),
+            },
+        },
+        None => ComponentHealth {
+            status: HealthStatus::Unhealthy,
+            latency_ms: 0,
+            message: Some("Redis not configured".to_string()),
+        },
     };
 
-    // TODO: Add external service checks as they are integrated
-    let external_services = Vec::new();
+    // Check EventStore health
+    let es_start = std::time::Instant::now();
+    let event_store_health = match &state.event_store {
+        Some(es) => match es.check_connection().await {
+            Ok(_) => ComponentHealth {
+                status: HealthStatus::Healthy,
+                latency_ms: es_start.elapsed().as_millis() as u64,
+                message: None,
+            },
+            Err(e) => ComponentHealth {
+                status: HealthStatus::Unhealthy,
+                latency_ms: es_start.elapsed().as_millis() as u64,
+                message: Some(e.to_string()),
+            },
+        },
+        None => ComponentHealth {
+            status: HealthStatus::Unhealthy,
+            latency_ms: 0,
+            message: Some("EventStore not configured".to_string()),
+        },
+    };
+
+    // Check RabbitMQ health
+    let mq_start = std::time::Instant::now();
+    let message_broker_health = match &state.message_broker {
+        Some(mb) => match mb.check_connection().await {
+            Ok(_) => ComponentHealth {
+                status: HealthStatus::Healthy,
+                latency_ms: mq_start.elapsed().as_millis() as u64,
+                message: None,
+            },
+            Err(e) => ComponentHealth {
+                status: HealthStatus::Unhealthy,
+                latency_ms: mq_start.elapsed().as_millis() as u64,
+                message: Some(e.to_string()),
+            },
+        },
+        None => ComponentHealth {
+            status: HealthStatus::Unhealthy,
+            latency_ms: 0,
+            message: Some("MessageBroker not configured".to_string()),
+        },
+    };
 
     // Calculate system metrics
     let total_memory = sys.total_memory() as f64;
@@ -153,15 +274,29 @@ async fn check_system_health(state: &AppState, sys: &SysInfo) -> AppResult<Healt
     };
 
     let system_health = SystemHealth {
-        cpu_usage: 0.0, // CPU usage is not available without the cpu feature
+        cpu_usage: sys.global_cpu_usage() as f64,
         memory_usage,
-        disk_usage: 0.0, // Disk usage is not available without the disk feature
+        disk_usage: calculate_disk_usage(),
     };
 
     Ok(HealthDetails {
         tenant_service: tenant_health,
         cache: cache_health,
-        external_services,
+        event_store: event_store_health,
+        message_broker: message_broker_health,
+        external_services: Vec::new(),
         system: system_health,
     })
+}
+
+fn calculate_disk_usage() -> f64 {
+    let disks = sysinfo::Disks::new_with_refreshed_list();
+    if let Some(disk) = disks.iter().next() {
+        let total = disk.total_space() as f64;
+        let free = disk.available_space() as f64;
+        if total > 0.0 {
+            return ((total - free) / total) * 100.0;
+        }
+    }
+    0.0
 }

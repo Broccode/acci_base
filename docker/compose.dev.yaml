@@ -24,12 +24,18 @@ services:
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-acci}
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-acci-backend}
       - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET:-acci_secret}
+      - EVENTSTORE_CONNECTION_STRING=esdb://eventstore:2113?tls=false
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-acci}:${RABBITMQ_PASSWORD:-acci}@rabbitmq:5672
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
       keycloak:
+        condition: service_healthy
+      eventstore:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
 
   keycloak:
@@ -95,8 +101,49 @@ services:
       timeout: 5s
       retries: 5
 
+  eventstore:
+    image: eventstore/eventstore:23.10.0-bookworm-slim
+    environment:
+      - EVENTSTORE_CLUSTER_SIZE=1
+      - EVENTSTORE_RUN_PROJECTIONS=All
+      - EVENTSTORE_START_STANDARD_PROJECTIONS=true
+      - EVENTSTORE_EXT_TCP_PORT=1113
+      - EVENTSTORE_HTTP_PORT=2113
+      - EVENTSTORE_INSECURE=true
+      - EVENTSTORE_ENABLE_EXTERNAL_TCP=true
+      - EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP=true
+    ports:
+      - "${EVENTSTORE_TCP_PORT:-1113}:1113"
+      - "${EVENTSTORE_HTTP_PORT:-2113}:2113"
+    volumes:
+      - eventstore_data:/var/lib/eventstore
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:2113/health/live || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-acci}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-acci}
+      - RABBITMQ_DEFAULT_VHOST=/
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
 volumes:
   postgres_data:
   redis_data:
   cargo_cache:
   app_target_data:
+  eventstore_data:
+  rabbitmq_data:

@@ -5,6 +5,8 @@ services:
       dockerfile: docker/Dockerfile.dev
     volumes:
       - ..:/app
+      - cargo_cache:/root/.cargo
+      - app_target_data:/app/target
       # - ../src:/app/src
       # - ../tests:/app/tests
       # - ../Cargo.toml:/app/Cargo.toml
@@ -96,3 +98,5 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  cargo_cache:
+  app_target_data:

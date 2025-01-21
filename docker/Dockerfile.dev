@@ -62,7 +62,8 @@ COPY .clippy.toml /app/
 COPY rustfmt.toml /app/
 
 # Create mount points for development
-VOLUME ["/app"]
+VOLUME ["/root/.cargo"]
+VOLUME ["/app/target"]
 
 # Development configuration
 ENV RUST_BACKTRACE=1
@@ -72,4 +73,4 @@ ARG SERVER_BACKEND_PORT=3333
 EXPOSE ${SERVER_BACKEND_PORT}
 
 # Use cargo watch for hot-reloading
-CMD ["cargo", "watch", "-x", "check", "-x", "test", "-x", "run"]
+CMD ["cargo", "watch", "-x", "build", "-x", "check", "-x", "test", "-x", "run"]

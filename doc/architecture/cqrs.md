@@ -69,10 +69,46 @@ pub struct Event {
 
 ### Event Storage
 
-- Uses EventStoreDB for event persistence
-- Implements event streams per aggregate
+- Uses PostgreSQL with JSONB for event persistence
+- Implements event streams per aggregate with optimized indices
 - Supports snapshots for performance optimization
 - Provides event versioning and schema evolution
+- Leverages PostgreSQL partitioning for tenant isolation
+- Implements optimistic concurrency control
+
+### Database Schema
+
+```sql
+CREATE SCHEMA event_store;
+CREATE SCHEMA snapshots;
+
+CREATE TABLE event_store.events (
+    event_id UUID PRIMARY KEY,
+    aggregate_id TEXT NOT NULL,
+    aggregate_type TEXT NOT NULL,
+    sequence_number BIGINT NOT NULL,
+    event_type TEXT NOT NULL,
+    event_version INTEGER NOT NULL,
+    data JSONB NOT NULL,
+    metadata JSONB NOT NULL,
+    tenant_id TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    version INTEGER NOT NULL,
+    CONSTRAINT unique_aggregate_sequence UNIQUE (aggregate_id, sequence_number)
+);
+
+CREATE TABLE snapshots.aggregate_snapshots (
+    snapshot_id UUID PRIMARY KEY,
+    aggregate_id TEXT NOT NULL,
+    aggregate_type TEXT NOT NULL,
+    sequence_number BIGINT NOT NULL,
+    state JSONB NOT NULL,
+    metadata JSONB NOT NULL,
+    tenant_id TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_aggregate_snapshot UNIQUE (aggregate_id, sequence_number)
+);
+```
 
 ## Projections
 
@@ -283,14 +319,73 @@ pub enum QueryError {
 4. Monitoring setup
 5. Backup strategies
 
+## Observability
+
+### Metrics (Prometheus/OpenMetrics)
+
+- Event Store performance metrics
+- Command and Query processing metrics
+- Projection lag monitoring
+- Cache effectiveness metrics
+- Business metrics per tenant
+
+### Tracing (OpenTelemetry)
+
+- Distributed tracing across command and query flows
+- Detailed operation spans
+- Cross-service correlation
+- Performance bottleneck identification
+
+### Logging
+
+- Structured JSON logging
+- Correlation IDs across operations
+- Tenant-aware logging
+- Security audit logging
+
+### Health Checks
+
+- Database connectivity
+- Event Store write capability
+- Read model consistency
+- Projection health
+- Overall system health
+
+## Backup and Recovery
+
+### Backup Strategy
+
+- Regular full backups of event store
+- Snapshot store backups
+- Read model backups (optional)
+- Point-in-Time recovery capability
+- Tenant-aware backup scheduling
+
+### Recovery Procedures
+
+- Full system recovery
+- Single tenant recovery
+- Point-in-Time reconstruction
+- Read model rebuilding
+- Consistency verification
+
+### Monitoring
+
+- Backup success/failure metrics
+- Backup size and duration tracking
+- Recovery time objectives (RTO)
+- Recovery point objectives (RPO)
+- Compliance verification
+
 ## Tools and Infrastructure
 
-1. EventStoreDB for event storage
+1. PostgreSQL for event storage and read models
 2. Redis for caching
-3. PostgreSQL for read models
-4. RabbitMQ for event distribution
-5. Prometheus for metrics
-6. Grafana for monitoring
+3. RabbitMQ for event distribution
+4. Prometheus for metrics
+5. Grafana for monitoring
+6. OpenTelemetry for tracing
+7. Jaeger for trace visualization
 
 ## Example Implementations
 

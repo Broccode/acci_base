@@ -46,7 +46,7 @@ dependencies = [
  "keycloak",
  "lapin",
  "lazy_static",
- "metrics 0.24.1",
+ "metrics",
  "metrics-exporter-prometheus",
  "migration",
  "mockall 0.13.1",
@@ -1815,7 +1815,7 @@ dependencies = [
  "chrono",
  "config 0.14.1",
  "futures",
- "metrics 0.21.1",
+ "metrics",
  "mockall 0.12.1",
  "reqwest 0.11.27",
  "serde",
@@ -3272,17 +3272,6 @@ checksum = "78ca9ab1a0babb1e7d5695e3530886289c18cf2f87ec19a575a0abdce112e3a3"
 
 [[package]]
 name = "metrics"
-version = "0.21.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fde3af1a009ed76a778cb84fdef9e7dbbdf5775ae3e4cc1f434a6a307f6f76c5"
-dependencies = [
- "ahash 0.8.11",
- "metrics-macros",
- "portable-atomic",
-]
-
-[[package]]
-name = "metrics"
 version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a7deb012b3b2767169ff203fadb4c6b0b82b947512e5eb9e0b78c2e186ad9e3"
@@ -3304,23 +3293,12 @@ dependencies = [
  "hyper-util",
  "indexmap 2.7.0",
  "ipnet",
- "metrics 0.24.1",
+ "metrics",
  "metrics-util",
  "quanta",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "metrics-macros"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38b4faf00617defe497754acde3024865bc143d44a86799b24e191ecff91354f"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.96",
 ]
 
 [[package]]
@@ -3332,7 +3310,7 @@ dependencies = [
  "crossbeam-epoch",
  "crossbeam-utils",
  "hashbrown 0.15.2",
- "metrics 0.24.1",
+ "metrics",
  "quanta",
  "rand 0.8.5",
  "rand_xoshiro",
